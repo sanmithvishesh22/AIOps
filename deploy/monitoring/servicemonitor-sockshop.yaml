@@ -1,0 +1,19 @@
+# Tell Prometheus to scrape Sock Shop. Sock Shop services expose Prometheus
+# metrics (request_duration_seconds_*) on their HTTP port. Adjust `port` /
+# `path` / matchLabels to match the manifests you actually deployed — the
+# upstream complete-demo.yaml labels services with `name: <svc>`.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sock-shop
+  namespace: monitoring
+  labels:
+    release: monitoring          # picked up by kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: ["sock-shop"]
+  selector: {}                   # empty = all services in the namespace
+  endpoints:
+    - port: http                 # rename if the Service port isn't named "http"
+      path: /metrics
+      interval: 15s

@@ -1,0 +1,29 @@
+# kube-prometheus-stack values for the local kind testbed.
+# Exposes Prometheus + Grafana on the NodePorts that kind-config maps to localhost,
+# and lets Prometheus pick up ServiceMonitors we apply outside the Helm release.
+prometheus:
+  service:
+    type: NodePort
+    nodePort: 30090
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    retention: 6h
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+
+grafana:
+  service:
+    type: NodePort
+    nodePort: 30300
+  # default login: admin / prom-operator
+
+# keep the local cluster light
+alertmanager:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false

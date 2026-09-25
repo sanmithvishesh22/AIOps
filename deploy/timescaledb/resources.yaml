@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aiops
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: timescaledb
+  namespace: aiops
+type: Opaque
+stringData:
+  # demo creds — fine for a local kind testbed, not production
+  POSTGRES_USER: aiops
+  POSTGRES_PASSWORD: aiops
+  POSTGRES_DB: aiops
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: timescaledb
+  namespace: aiops
+spec:
+  selector: { app: timescaledb }
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: timescaledb
+  namespace: aiops
+spec:
+  serviceName: timescaledb
+  replicas: 1
+  selector: { matchLabels: { app: timescaledb } }
+  template:
+    metadata:
+      labels: { app: timescaledb }
+    spec:
+      containers:
+        - name: timescaledb
+          image: timescale/timescaledb:2.17.2-pg16
+          envFrom:
+            - secretRef: { name: timescaledb }
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "aiops"] }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 2Gi } }

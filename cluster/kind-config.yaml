@@ -1,0 +1,22 @@
+# Local kind cluster for the AIOps platform + Sock Shop testbed.
+#   kind create cluster --name aiops --config cluster/kind-config.yaml
+# One control-plane + two workers (Sock Shop + our components need the room).
+# extraPortMappings expose NodePorts on localhost so you can reach the dashboard
+# and Grafana without port-forwarding.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: aiops
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080   # dashboard  -> http://localhost:8080
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 30300   # grafana    -> http://localhost:3300
+        hostPort: 3300
+        protocol: TCP
+      - containerPort: 30090   # prometheus -> http://localhost:9090
+        hostPort: 9090
+        protocol: TCP
+  - role: worker
+  - role: worker

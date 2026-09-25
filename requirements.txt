@@ -1,0 +1,15 @@
+# Base deps shared by the platform. Heavy per-module extras are listed but
+# commented so you only install what a given module needs.
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+requests>=2.31
+psycopg2-binary>=2.9
+fastapi>=0.111
+uvicorn>=0.30
+kubernetes>=29.0        # scaler + remediation talk to the k8s API
+
+# --- per-module extras (uncomment as needed) ---
+# torch>=2.2            # detect: LSTM autoencoder
+# prophet>=1.1          # forecast: Prophet
+# shap>=0.45            # explain: SHAP

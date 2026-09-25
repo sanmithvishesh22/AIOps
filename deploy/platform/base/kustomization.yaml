@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: aiops
+# Module Deployments/CronJobs get added here as each module lands
+# (ingest, detect, rca, predict, forecast, scaler, remediate, explain, dashboard).
+resources: []

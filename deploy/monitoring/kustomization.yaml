@@ -1,0 +1,5 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# kps-values.yaml is a Helm values file, NOT a resource — intentionally excluded.
+resources:
+  - servicemonitor-sockshop.yaml
