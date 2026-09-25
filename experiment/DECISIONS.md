@@ -1,7 +1,21 @@
 # §9 Predeclared Decisions — First-Pass Proposals
 ## AIOps Platform experiment (ticket D3-000)
 
-**Status:** FIRST-PASS PROPOSAL — **not yet signed off.** These are defensible starting values for you + your advisor to approve or edit. They must be **predeclared and frozen before any trial is run**, because choosing them after seeing results is p-hacking and invalidates the contribution.
+**Status:** RATIFIED BY OWNER (2026-09-25) — **advisor sign-off + a characterization run still pending, so NOT yet fully frozen.** sanmithvishesh ratified the desk-decidable values on 2026-09-25 (per-decision sign-off below; ratification log follows this block). Two gates remain before any trial: (1) the three ⚙️ **calibration-locked anchors** — SLO latency ms, per-replica capacity, and H-vs-pod-ready — are *provisional* until a baseline characterization run fills them; (2) **advisor sign-off** is outstanding. Values must be **predeclared and frozen before any trial is run** — choosing them after seeing results is p-hacking and invalidates the contribution.
+
+### Ratification log — 2026-09-25 (owner: sanmithvishesh)
+
+| Decision | Ratified value | Note |
+|---|---|---|
+| 1 — SLO latency | p95 ≤ **300 ms** *(provisional)* | ⚙️ recalibrate to nominal_p95 × 1.3–1.5 after char run |
+| 1 — SLO error | ≤ **1%** | fixed |
+| 1 — SLO window | **60 s** rolling | `SLO_WINDOW_S=60`; distinct from `WINDOW_MIN` (ingest lookback) |
+| 1 — SLO scope | **front-end primary + catalogue/carts/orders secondary** | **CHANGED from first-pass** (was front-end only) — backend secondary thresholds must also be calibrated + defended |
+| 2 — Horizon *H* | **120 s**, shared by predict + forecast *(provisional)* | ⚙️ must exceed measured pod-ready time |
+| 3 — Regimes | stationary / diurnal / spike / bursty, **20 min**, seeded | ⚙️ RPS levels from char run |
+| 4 — Scaler | target_util **0.70**, cooldown up **30 s** / down **300 s**, bounds min **2** / max **10** | ⚙️ per_replica_capacity from char run |
+| 5 — Faults | 2 capacity-responsive + 4 negative controls, **full regime × fault matrix** | full cross → ~4×6×20×2 ≈ 960 runs |
+| 6 — Severity | none / minor (≤450 ms) / major (>450 ms or err), **unweighted** breaching-request count | prediction target = major breach within *H* |
 
 **Governing baseline:** `LITERATURE_SURVEY_DECISION_REPORT.md`. The experiment being parameterized: *under predeclared nonstationary workloads and capacity-responsive faults in Sock Shop, does forecast-assisted hybrid scaling reduce SLO-breach duration + breaching requests vs a tuned reactive HPA — and where does it fail?*
 
@@ -23,7 +37,7 @@ Everything else is a defensible default that does not need the cluster.
 
 ## Decision 1 — SLO definition
 
-**Proposal.** Target the user-facing edge, the `front-end` service, measured per request.
+**Proposal (ratified).** Primary SLO on the user-facing edge, the `front-end` service, measured per request; **`catalogue`, `carts`, `orders` carry secondary SLOs** (ratified 2026-09-25 — a change from the first-pass, which was front-end only).
 
 - **Latency SLO:** p95 request latency **≤ 300 ms** ⚙️ *calibrate*, evaluated over a **60-second rolling window**.
 - **Error SLO:** HTTP-5xx rate **≤ 1%** over the same 60 s window.
@@ -32,11 +46,11 @@ Everything else is a defensible default that does not need the cluster.
 
 **Rationale.** Latency is the dimension scaling can actually move; the error-rate guard catches saturation collapse that latency alone misses. p95 (not mean) is the standard user-experience SLI. The 300 ms figure is a placeholder — set it from the characterization run so nominal load comfortably passes and stress reliably breaches (a rule of thumb: SLO ≈ nominal p95 × 1.3–1.5, rounded).
 
-**Knobs for the advisor:** the ms threshold (calibration-dependent), the window length (60 s balances noise vs responsiveness), whether to add backend services (catalogue/carts/orders) as secondary SLOs.
+**Knobs (resolved 2026-09-25):** window length = **60 s**; backend secondary SLOs = **yes** (catalogue/carts/orders). Still open: the ms threshold stays ⚙️ calibration-dependent, and the backend secondary thresholds must be calibrated the same way as the front-end.
 
-**Config:** `SLO_P95_MS=300`, `SLO_ERROR_RATE=0.01`, window = `WINDOW_MIN=1`.
+**Config:** `SLO_P95_MS=300`, `SLO_ERROR_RATE=0.01`, `SLO_WINDOW_S=60` (the SLO evaluation window — **distinct from `WINDOW_MIN`**, which is the 15-min ingest lookback; the two are not the same knob).
 
-**Sign-off:** ☐ advisor ☐ you
+**Sign-off:** ☐ advisor ☑ you (2026-09-25)
 
 ## Decision 2 — Prediction / forecast horizon *H*
 
@@ -50,7 +64,7 @@ Everything else is a defensible default that does not need the cluster.
 
 **Config:** `horizon_s=120` (stamped on every `experiment_run`).
 
-**Sign-off:** ☐ advisor ☐ you
+**Sign-off:** ☐ advisor ☑ you (2026-09-25)
 
 ## Decision 3 — Workload generator + four traffic regimes
 
@@ -69,7 +83,7 @@ Everything else is a defensible default that does not need the cluster.
 
 **Config:** `workload_regime` ∈ {stationary, diurnal, spike, bursty} + `seed` on each `experiment_run`.
 
-**Sign-off:** ☐ advisor ☐ you
+**Sign-off:** ☐ advisor ☑ you (2026-09-25)
 
 ## Decision 4 — Scaling-policy parameters + HPA tuning procedure
 
@@ -93,7 +107,7 @@ with **target_util = 0.7**, **per_replica_capacity** ⚙️ from characterizatio
 
 **Config:** stored with each run's policy config (`meta`/notes on `experiment_run`).
 
-**Sign-off:** ☐ advisor ☐ you
+**Sign-off:** ☐ advisor ☑ you (2026-09-25)
 
 ## Decision 5 — Fault taxonomy (capacity-responsive vs negative controls)
 
@@ -119,7 +133,7 @@ Every fault row is tagged **`is_negative_control`** (true/false).
 
 **Config:** `fault_class` (string) + `is_negative_control` (bool) on each `experiment_run`.
 
-**Sign-off:** ☐ advisor ☐ you
+**Sign-off:** ☐ advisor ☑ you (2026-09-25)
 
 ## Decision 6 — Severity definition
 
@@ -135,16 +149,17 @@ Every fault row is tagged **`is_negative_control`** (true/false).
 
 **Knobs:** the minor/major cut (450 ms), whether to weight breaching-request counts by severity.
 
-**Sign-off:** ☐ advisor ☐ you
+**Sign-off:** ☐ advisor ☑ you (2026-09-25)
 
 ---
 
 ## Summary — the frozen constants (once signed off)
 
-| Symbol | Value (first-pass) | Calibrate? | Binds to |
+| Symbol | Value (ratified 2026-09-25) | Calibrate? | Binds to |
 |---|---|---|---|
-| SLO p95 | 300 ms / 60 s window | ⚙️ yes | `SLO_P95_MS`, `WINDOW_MIN` |
+| SLO p95 | 300 ms / 60 s window | ⚙️ yes | `SLO_P95_MS`, `SLO_WINDOW_S` |
 | SLO error | ≤ 1% / 60 s | no | `SLO_ERROR_RATE` |
+| SLO scope | front-end primary + catalogue/carts/orders secondary | ⚙️ backend thresholds | — |
 | Horizon *H* | 120 s | ⚙️ yes | `horizon_s` |
 | Regimes | stationary/diurnal/spike/bursty, 20 min, seeded | ⚙️ RPS levels | `workload_regime`, `seed` |
 | target_util | 0.70 | no | scaler config |

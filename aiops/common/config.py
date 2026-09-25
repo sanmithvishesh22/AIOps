@@ -15,13 +15,12 @@ TIMESCALE_DSN = os.environ.get(
 SOCK_NS = os.environ.get("SOCK_NS", "sock-shop")
 WINDOW_MIN = int(os.environ.get("WINDOW_MIN", "15"))   # ingest lookback per pull (minutes)
 STEP_S = int(os.environ.get("STEP_S", "15"))            # sample step (seconds)
-# NOTE: WINDOW_MIN is the ingest history window, NOT the SLO evaluation window.
-# DECISIONS.md proposes a 60 s rolling SLO window — a separate §9 constant, still owed
-# and not yet wired (the experiment harness reads it); do not conflate the two.
-
-# §9-OWED PLACEHOLDERS — experiment/DECISIONS.md first-pass, NOT signed off. A human +
-# advisor must predeclare and freeze these before any trial; do not treat as final.
-# Values below are synced to that first-pass proposal so code compiles and self-tests run.
-SLO_P95_MS = float(os.environ.get("SLO_P95_MS", "300"))      # ⚙️ calibrate from baseline run
+# §9 CONSTANTS — owner-ratified 2026-09-25 (experiment/DECISIONS.md), but advisor
+# sign-off + a baseline characterization run are still pending, so the ⚙️ values remain
+# PROVISIONAL: do not treat as final until frozen. SLO_WINDOW_S is the SLO evaluation
+# window (60 s) — deliberately SEPARATE from WINDOW_MIN (the 15-min ingest lookback);
+# the two are different knobs and must not be conflated.
+SLO_P95_MS = float(os.environ.get("SLO_P95_MS", "300"))      # ⚙️ recalibrate: nominal_p95 × 1.3–1.5
 SLO_ERROR_RATE = float(os.environ.get("SLO_ERROR_RATE", "0.01"))
-HORIZON_S = int(os.environ.get("HORIZON_S", "120"))          # ⚙️ must exceed pod-ready time
+SLO_WINDOW_S = int(os.environ.get("SLO_WINDOW_S", "60"))     # SLO eval window (NOT WINDOW_MIN)
+HORIZON_S = int(os.environ.get("HORIZON_S", "120"))          # ⚙️ must exceed measured pod-ready time
