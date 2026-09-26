@@ -121,6 +121,22 @@ def _selftest():
     assert list(build_frame({}).columns) == COLUMNS
     # unlabeled series is dropped, not crashed on
     assert build_frame({"rps": [({}, [1.0], [5.0])]}).empty
+    # fetch(): the six executors are wired and `window` is forwarded to each (mock prom)
+    global _METRICS
+    saved, calls = _METRICS, {}
+    def _mk(metric):
+        def q(window):
+            calls[metric] = window
+            return [({"name": "orders"}, [1000.0, 1015.0], [1.0, 2.0])]
+        return q
+    try:
+        _METRICS = {m: _mk(m) for m in saved}
+        ff = fetch(7)
+    finally:
+        _METRICS = saved
+    assert set(calls) == set(saved), "fetch must call every metric executor"
+    assert set(calls.values()) == {7}, "fetch must forward window to each executor"
+    assert list(ff.columns) == COLUMNS and not ff.empty, "fetch assembles the frame"
     print("ingest selftest OK")
     print(f.to_string(index=False))
 

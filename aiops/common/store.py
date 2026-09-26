@@ -113,6 +113,35 @@ def _selftest():
     sql_one, p_one = _recent_sql("detect", "anomaly_score", "orders", 1000.0)
     assert "service = %s" in sql_one and p_one == ("detect", "anomaly_score", "orders", 1000.0)
     assert sql_all.count("%s") == len(p_all) and sql_one.count("%s") == len(p_one)
+    # insert+read round-trip with psycopg2 mocked (no driver needed) — proves write()
+    # normalizes+INSERTs and recent() maps SELECT rows to column-keyed dicts.
+    import sys, types
+    seen = []
+    class _Cur:
+        description = [(c,) for c in ("ts", "module", "service", "kind", "value", "meta")]
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute(self, sql, params=None): seen.append(sql)
+        def executemany(self, sql, rows): seen.append(sql); self._n = len(list(rows))
+        def fetchall(self): return [(1000.0, "detect", "orders", "anomaly_score", -0.73,
+                                     {"model": "iforest"})]
+    class _Conn:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def cursor(self): return _Cur()
+    fake = types.ModuleType("psycopg2"); fake.connect = lambda dsn: _Conn()
+    saved = sys.modules.get("psycopg2")
+    sys.modules["psycopg2"] = fake
+    try:
+        assert write(rows) == 2, "write() should report rows inserted"
+        got = recent("detect", "anomaly_score", "orders", 0.0)
+    finally:
+        sys.modules.pop("psycopg2", None)
+        if saved is not None:
+            sys.modules["psycopg2"] = saved
+    assert any("INSERT INTO inference" in s for s in seen), "write() must issue the INSERT"
+    assert got[0]["module"] == "detect" and got[0]["ts"] == 1000.0, "recent() maps columns"
+    assert got[0]["meta"] == {"model": "iforest"}, "recent() returns meta as-is"
     print("store selftest OK")
 
 

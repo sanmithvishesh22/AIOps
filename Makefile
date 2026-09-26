@@ -25,5 +25,9 @@ selftest: ## run every module's offline self-check (no cluster needed)
 	@for m in ingest detect rca predict forecast scaler remediate explain; do \
 		echo "== $$m =="; python -m aiops.$$m --selftest || exit 1; done
 
+schema-test: ## apply schema + prove the append-only audit guard (needs a reachable Postgres)
+	psql "$${TIMESCALE_DSN:-postgresql://aiops:aiops@localhost:5432/aiops}" -v ON_ERROR_STOP=1 \
+		-f experiment/schema.sql -f experiment/schema_test.sql
+
 ps: ## what's running
 	kubectl get pods -A | grep -E 'sock-shop|monitoring|chaos-mesh|aiops' || true
