@@ -1,9 +1,9 @@
-# §9 Predeclared Decisions — First-Pass Proposals
+# §9 Predeclared Decisions — Ratified (owner + advisor); ⚙️ anchors pending calibration
 ## AIOps Platform experiment (ticket D3-000)
 
-**Status:** RATIFIED BY OWNER (2026-09-25) — **advisor sign-off + a characterization run still pending, so NOT yet fully frozen.** sanmithvishesh ratified the desk-decidable values on 2026-09-25 (per-decision sign-off below; ratification log follows this block). Two gates remain before any trial: (1) the three ⚙️ **calibration-locked anchors** — SLO latency ms, per-replica capacity, and H-vs-pod-ready — are *provisional* until a baseline characterization run fills them; (2) **advisor sign-off** is outstanding. Values must be **predeclared and frozen before any trial is run** — choosing them after seeing results is p-hacking and invalidates the contribution.
+**Status:** RATIFIED BY OWNER (sanmithvishesh, 2026-09-25) **+ ADVISOR-SIGNED (Guide Dhirbitri Bora, 2026-09-26).** Both sign-off gates are now closed. **One gate remains before any trial: the baseline characterization run** — the three ⚙️ **calibration-locked anchors** (SLO latency ms, per-replica capacity, H-vs-pod-ready) plus the backend secondary thresholds are *numerically provisional* until that run on the real testbed fills them. The non-⚙️ values are frozen. Values must be **predeclared and frozen before any trial is run** — choosing them after seeing results is p-hacking and invalidates the contribution, so the ⚙️ numbers must be locked by the characterization run (not by picking them post-hoc).
 
-### Ratification log — 2026-09-25 (owner: sanmithvishesh)
+### Ratification log — owner 2026-09-25 (sanmithvishesh); advisor 2026-09-26 (Guide Dhirbitri Bora)
 
 | Decision | Ratified value | Note |
 |---|---|---|
@@ -50,7 +50,7 @@ Everything else is a defensible default that does not need the cluster.
 
 **Config:** `SLO_P95_MS=300`, `SLO_ERROR_RATE=0.01`, `SLO_WINDOW_S=60` (the SLO evaluation window — **distinct from `WINDOW_MIN`**, which is the 15-min ingest lookback; the two are not the same knob).
 
-**Sign-off:** ☐ advisor ☑ you (2026-09-25)
+**Sign-off:** ☑ advisor: Guide Dhirbitri Bora (2026-09-26) ☑ you (2026-09-25)
 
 ## Decision 2 — Prediction / forecast horizon *H*
 
@@ -64,7 +64,7 @@ Everything else is a defensible default that does not need the cluster.
 
 **Config:** `horizon_s=120` (stamped on every `experiment_run`).
 
-**Sign-off:** ☐ advisor ☑ you (2026-09-25)
+**Sign-off:** ☑ advisor: Guide Dhirbitri Bora (2026-09-26) ☑ you (2026-09-25)
 
 ## Decision 3 — Workload generator + four traffic regimes
 
@@ -83,7 +83,7 @@ Everything else is a defensible default that does not need the cluster.
 
 **Config:** `workload_regime` ∈ {stationary, diurnal, spike, bursty} + `seed` on each `experiment_run`.
 
-**Sign-off:** ☐ advisor ☑ you (2026-09-25)
+**Sign-off:** ☑ advisor: Guide Dhirbitri Bora (2026-09-26) ☑ you (2026-09-25)
 
 ## Decision 4 — Scaling-policy parameters + HPA tuning procedure
 
@@ -107,7 +107,7 @@ with **target_util = 0.7**, **per_replica_capacity** ⚙️ from characterizatio
 
 **Config:** stored with each run's policy config (`meta`/notes on `experiment_run`).
 
-**Sign-off:** ☐ advisor ☑ you (2026-09-25)
+**Sign-off:** ☑ advisor: Guide Dhirbitri Bora (2026-09-26) ☑ you (2026-09-25)
 
 ## Decision 5 — Fault taxonomy (capacity-responsive vs negative controls)
 
@@ -133,7 +133,7 @@ Every fault row is tagged **`is_negative_control`** (true/false).
 
 **Config:** `fault_class` (string) + `is_negative_control` (bool) on each `experiment_run`.
 
-**Sign-off:** ☐ advisor ☑ you (2026-09-25)
+**Sign-off:** ☑ advisor: Guide Dhirbitri Bora (2026-09-26) ☑ you (2026-09-25)
 
 ## Decision 6 — Severity definition
 
@@ -149,7 +149,7 @@ Every fault row is tagged **`is_negative_control`** (true/false).
 
 **Knobs:** the minor/major cut (450 ms), whether to weight breaching-request counts by severity.
 
-**Sign-off:** ☐ advisor ☑ you (2026-09-25)
+**Sign-off:** ☑ advisor: Guide Dhirbitri Bora (2026-09-26) ☑ you (2026-09-25)
 
 ---
 

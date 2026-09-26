@@ -116,10 +116,10 @@ Single source; every module reads config from here — never re-reads env direct
 | `SOCK_NS` | `sock-shop` | namespace under test; the **only** namespace faults may target |
 | `WINDOW_MIN` | `15` | ingest lookback per pull (minutes) |
 | `STEP_S` | `15` | sample step (seconds) |
-| `SLO_P95_MS` | `300` | ⚙️ §9, owner-ratified provisional — front-end p95 SLO (recalibrate from char run) |
-| `SLO_ERROR_RATE` | `0.01` | §9, owner-ratified — 5xx SLO |
-| `SLO_WINDOW_S` | `60` | §9, owner-ratified — SLO evaluation window (**not** `WINDOW_MIN`) |
-| `HORIZON_S` | `120` | ⚙️ §9, owner-ratified provisional — prediction/forecast horizon *H* |
+| `SLO_P95_MS` | `300` | ⚙️ §9-ratified (owner+advisor) provisional — front-end p95 SLO (recalibrate from char run) |
+| `SLO_ERROR_RATE` | `0.01` | §9-ratified (owner+advisor) — 5xx SLO |
+| `SLO_WINDOW_S` | `60` | §9-ratified (owner+advisor) — SLO evaluation window (**not** `WINDOW_MIN`) |
+| `HORIZON_S` | `120` | ⚙️ §9-ratified (owner+advisor) provisional — prediction/forecast horizon *H* |
 
 **`WINDOW_MIN` (ingest lookback, 15 min) is NOT the SLO evaluation window** — that is
 `SLO_WINDOW_S` (60 s). Two different knobs; do not conflate them.
@@ -128,8 +128,9 @@ Single source; every module reads config from here — never re-reads env direct
 
 SLO, horizon *H*, workload regimes, scaling params, fault taxonomy, and severity are a
 contract (`experiment/DECISIONS.md`, ticket D3-000), **decided by the team + advisor**,
-not by code or an AI agent. As of 2026-09-25 the owner has ratified the desk-decidable
-values (see `experiment/DECISIONS.md` ratification log); **advisor sign-off and a
-baseline characterization run are still pending**, so the `⚙️` values remain provisional.
+not by code or an AI agent. As of 2026-09-26 both sign-off gates are closed — the owner
+ratified the desk-decidable values (2026-09-25) and the advisor signed off (Guide
+Dhirbitri Bora, 2026-09-26); see the `experiment/DECISIONS.md` ratification log. **The
+baseline characterization run is still pending**, so the `⚙️` values remain provisional.
 **No experiment result is valid until they are predeclared, signed off, and frozen** —
 choosing them after seeing results is p-hacking and invalidates the contribution.
