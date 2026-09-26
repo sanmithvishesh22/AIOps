@@ -13,7 +13,9 @@ down: ## delete the whole cluster
 	kind delete cluster --name $(CLUSTER)
 
 deploy: ## re-apply just our components (after code/manifest changes)
-	kubectl apply -k deploy/platform/overlays/local
+	@out="$$(kubectl kustomize deploy/platform/overlays/local)"; \
+	if [ -n "$$out" ]; then echo "$$out" | kubectl apply -f -; \
+	else echo "no platform module manifests yet — nothing to deploy"; fi
 
 load: ## run a k6 load Job against Sock Shop (REGIME=steady|ramp|spike|soak)
 	REGIME=$${REGIME:-ramp} envsubst < experiment/load/k6-job.yaml | kubectl apply -f -

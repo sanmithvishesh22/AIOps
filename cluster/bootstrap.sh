@@ -32,7 +32,11 @@ helm upgrade --install chaos-mesh chaos-mesh/chaos-mesh \
 echo "==> [6/6] our components (TimescaleDB + platform)"
 kubectl apply -k deploy/timescaledb
 kubectl apply -k deploy/monitoring        # ServiceMonitors for Sock Shop
-kubectl apply -k deploy/platform/overlays/local
+# platform overlay is empty until modules land — apply only if it renders objects
+# (kubectl treats an empty `apply -k` as an error, not a no-op)
+manifest="$(kubectl kustomize deploy/platform/overlays/local)"
+if [ -n "$manifest" ]; then echo "$manifest" | kubectl apply -f -
+else echo "   (no platform module manifests yet — skipping)"; fi
 
 cat <<'EOF'
 
