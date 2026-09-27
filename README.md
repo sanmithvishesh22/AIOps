@@ -8,6 +8,26 @@ HPA, and where does it fail?*
 Read [ARCHITECTURE.md](ARCHITECTURE.md) first — it explains the seven modules,
 the stack choices, and the positioning guardrails.
 
+## Flows (parallel development)
+
+Work runs on four parallel lanes, one Git branch each. Every lane builds on the
+same frozen foundation (`aiops/common/*` + the Contracts) and integrates via PRs
+into `main`, gated by `make selftest` (QA-001). Pick your lane, check out its
+branch, and follow its onboarding doc — each lists only the docs that lane needs:
+
+| Branch | Lane | Start here |
+|--------|------|------------|
+| `dev1-foundation` | contracts · testbed · ingestion | [flows/dev1-foundation.md](flows/dev1-foundation.md) |
+| `dev2-diagnosis` | detect · rca · explain | [flows/dev2-diagnosis.md](flows/dev2-diagnosis.md) |
+| `dev3-experiment` | predict · forecast · scaler + experiment (Sanmith) | [flows/dev3-experiment.md](flows/dev3-experiment.md) |
+| `dev4-surface` | remediation · dashboard · evaluation | [flows/dev4-surface.md](flows/dev4-surface.md) |
+
+```bash
+git clone https://github.com/sanmithvishesh22/AIOps.git
+cd AIOps
+git checkout dev2-diagnosis        # your lane's branch, then open its flows/ doc
+```
+
 ## Prerequisites (on your machine)
 
 - Docker, [kind](https://kind.sigs.k8s.io/), `kubectl`, `helm`
