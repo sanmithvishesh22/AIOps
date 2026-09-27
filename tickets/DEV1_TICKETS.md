@@ -8,7 +8,7 @@
 
 **Files you own:** `cluster/*`, `deploy/timescaledb/*`, `deploy/monitoring/*`, `deploy/platform/base|overlays/local/kustomization.yaml`, `aiops/common/*`, `aiops/ingest/*`, `experiment/schema.sql`, `Makefile`, base `requirements.txt`, `cluster/bootstrap.sh`.
 
-**Files to avoid:** any module logic in `aiops/{detect,rca,predict,forecast,scaler,remediate,explain,dashboard}`; `experiment/{load,faults,runner,analysis}` (Dev 3).
+**Files to avoid:** any module logic in `aiops/{detect,rca,predict,forecast,scaler,remediate,explain,dashboard}`; `experiment/{load,faults,runner,analysis}` (Sanmith).
 
 **Contracts you own (freeze in Phase 0, others sign off):** A `inference.kind` vocabulary · B `prom.py` helper signatures · C feature-frame shape · D `experiment/schema.sql` · G config env vars. Publish `sample_frame()` + inference-row fixtures so Dev 2/3/4 build against mocks day one.
 

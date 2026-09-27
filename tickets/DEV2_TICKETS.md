@@ -6,9 +6,9 @@
 **How to use this file (prepend to every AI prompt below):**
 > You are in the `aiops-platform` monorepo. Read `ARCHITECTURE.md`, `TECHNICAL_ARCHITECTURE.md`, and `PARALLEL_DEV_PLAN.md` first. Rules: reuse `aiops/common/{prom,store,config}.py` (import, never re-implement); read config from env vars only; every module ships an offline `python -m aiops.<module> --selftest` (assert-based, no framework, no cluster) as its only test; edit only files inside your owned directories; never surface the retired claims ("first integrated platform", "integration is novel", "forecast accuracy proves reliability", "RCA proves causality", "human approval makes remediation safe", "Sock Shop generalizes to production"); keep it minimal — no speculative abstractions.
 
-**Files you own:** `aiops/detect/*`, `aiops/rca/*`, `aiops/explain/*`, `requirements-{detect,rca,explain}.txt`.
+**Files you own:** `aiops/detect/*`, `aiops/rca/*`, `aiops/explain/*` (deps live in the base `requirements.txt` — uncomment the torch/shap extras).
 
-**Files to avoid:** `aiops/common/*` (import only — request changes from Dev 1); the dashboard (Dev 4 renders your rows, you just write them); Dev 3's forecasting/experiment tree.
+**Files to avoid:** `aiops/common/*` (import only — request changes from Dev 1); the dashboard (Dev 4 renders your rows, you just write them); Sanmith's forecasting/experiment tree.
 
 **Contracts you must honor:** write only the documented `kind` values via `store.py` — detect: `anomaly_score`, `anomaly_score_seq`, `anomaly_flag`; rca: `culprit_rank`; explain: `attribution`. Consume the Contract-C feature frame (build against Dev 1's `sample_frame()` until the live bridge lands). Read Prometheus only through `prom.py`.
 
@@ -26,7 +26,7 @@
 **Build:** temporal detector scoring reconstruction error; writes `anomaly_score_seq`.
 **Done when:** trains offline on the fixture; `--selftest` asserts higher error on anomalous windows.
 **Prompt:**
-> Add a PyTorch LSTM autoencoder in `aiops/detect/` scoring reconstruction error over windowed sequences; write `anomaly_score_seq`. Train offline on the fixture. `--selftest` asserts higher error on anomalous windows. Put torch in `requirements-detect.txt`.
+> Add a PyTorch LSTM autoencoder in `aiops/detect/` scoring reconstruction error over windowed sequences; write `anomaly_score_seq`. Train offline on the fixture. `--selftest` asserts higher error on anomalous windows. Uncomment the torch extra in `requirements.txt`.
 
 ### D2-003 — Service dependency graph · **Must** · deps: D1-001 · Phase 1
 **Build:** directed service graph built at runtime from traces/metrics (not modeled in the DB).
@@ -44,7 +44,7 @@
 **Build:** attributions over the detector (and predictor rows when present); writes `attribution`.
 **Done when:** returns top-k feature weights for a flagged anomaly; degrades gracefully if predictor rows absent; `--selftest` green.
 **Prompt:**
-> In `aiops/explain/`, compute SHAP (fallback LIME) attributions over the detector (and predictor rows when present); write `attribution` with `meta={target_module, shap}`. Degrade gracefully if predictor rows are absent. `--selftest` returns top-k weights for a flagged anomaly. shap in `requirements-explain.txt`.
+> In `aiops/explain/`, compute SHAP (fallback LIME) attributions over the detector (and predictor rows when present); write `attribution` with `meta={target_module, shap}`. Degrade gracefully if predictor rows are absent. `--selftest` returns top-k weights for a flagged anomaly. Uncomment the shap extra in `requirements.txt`.
 
 ### D2-006 — Ensemble voting + confidence · **Should** · deps: D2-001, D2-002 · Phase 4
 **Build:** blend IF + LSTM-AE into one score + confidence.

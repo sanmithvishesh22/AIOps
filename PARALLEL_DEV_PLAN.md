@@ -5,10 +5,10 @@
 
 **Inputs (repo is the source of truth):** `PRD.md`, `TECHNICAL_ARCHITECTURE.md`, `ARCHITECTURE.md`, `FEATURE_TICKETS.md`, `SECURITY_AND_ACCESS.md`, `experiment/DECISIONS.md`, governed by `LITERATURE_SURVEY_DECISION_REPORT.md`.
 
-**Guardrails carried into every ticket (from the survey — never violate):** RCA is a *ranking, not causal proof*; remediation is *human-approved, never autonomous* (approval = accountability, not safety); *negative-control faults are mandatory and reported separately*; the dashboard/read-API is *unauthenticated, localhost-only*; demo DB creds are *local-testbed-only*; the retired novelty claims must never reappear. The **sole scientific contribution** is the conditional scaling experiment (Dev 3).
+**Guardrails carried into every ticket (from the survey — never violate):** RCA is a *ranking, not causal proof*; remediation is *human-approved, never autonomous* (approval = accountability, not safety); *negative-control faults are mandatory and reported separately*; the dashboard/read-API is *unauthenticated, localhost-only*; demo DB creds are *local-testbed-only*; the retired novelty claims must never reappear. The **sole scientific contribution** is the conditional scaling experiment (Sanmith).
 
 **Status of the two open decisions:**
-- **Dev split — decided:** subsystem split along the data flow (Dev 3 owns the whole contribution). Chosen for *seamless* development (disjoint directories, only frozen contracts shared); even-hours rebalancing rejected because it would fracture the coupled experiment chain across people.
+- **Dev split — decided:** subsystem split along the data flow (Sanmith owns the whole contribution). Chosen for *seamless* development (disjoint directories, only frozen contracts shared); even-hours rebalancing rejected because it would fracture the coupled experiment chain across people.
 - **§9 research decisions — first-pass drafted** in `experiment/DECISIONS.md`; still need advisor sign-off + a calibration run (ticket D3-000). They gate the experiment *result*, not the *code*.
 
 ---
@@ -63,7 +63,7 @@ The system decomposes into ~13 domains — foundation/contracts, ingestion, dete
 | **3** | **Prediction, forecast & the contribution** | `aiops/{predict,forecast,scaler}/`, `experiment/{load,faults,runner,analysis}/`, HPA manifests | predict+forecast feed the scaler; scaler+harness+analysis are the scientific contribution and must stay under one owner for methodological coherence. Heaviest by design — it *is* the project. |
 | **4** | **Act, surface & measure** | `aiops/{remediate,dashboard}/`, eval layer, deferred `aiops/auth/` | The two human-facing surfaces + evaluation; all pure *consumers* of module outputs via the read contract, so they parallelize perfectly against mocks. |
 
-**Load is intentionally uneven** (Dev 3 > Dev 1 > Dev 4 > Dev 2). Padding the diagnosis stream to match would invent work; Dev 2 instead absorbs the Should-tier ensemble/NL work without touching anyone else's files.
+**Load is intentionally uneven** (Sanmith > Dev 1 > Dev 4 > Dev 2). Padding the diagnosis stream to match would invent work; Dev 2 instead absorbs the Should-tier ensemble/NL work without touching anyone else's files.
 
 ## 3. Ownership boundaries & merge-conflict rules
 
@@ -72,7 +72,7 @@ The system decomposes into ~13 domains — foundation/contracts, ingestion, dete
         │ feature frames + inference schema + prom/store clients + config
    ┌────┴─────────────────────────┬──────────────────────────────┐
    ▼                              ▼                               ▼
- DEV 2 diagnose            DEV 3 predict + contribution     DEV 4 act + surface + measure
+ DEV 2 diagnose            SANMITH predict + contribution     DEV 4 act + surface + measure
  detect rca explain        predict forecast scaler          remediate dashboard eval
         └──── writes ──►  TimescaleDB `inference` (shared contract, owned by DEV 1) ◄── reads ────┘
                           experiment_run/result/remediation_action (owned by DEV 1)
@@ -82,7 +82,7 @@ The system decomposes into ~13 domains — foundation/contracts, ingestion, dete
 
 1. **Edit only files inside the directories you own.** Need a change across the line? Open a contract request — don't edit another stream's files.
 2. **`aiops/common/*` is edited only by Dev 1.** Everyone else imports read-only; new shared helpers are added by Dev 1 (Phase-0 fast path) or live inside the requesting module.
-3. **The top-level kustomization and base `requirements.txt` are edited only by Dev 1.** Each module ships its *own* manifest file and its *own* `requirements-<module>.txt` — nobody edits a shared list.
+3. **The top-level kustomization and base `requirements.txt` are edited only by Dev 1.** Each module ships its *own* manifest file — nobody edits a shared list. Dependencies all live in the single base `requirements.txt` (uncomment each module's extra); the per-module `requirements-<module>.txt` split was dropped 2026-09-27 (solo ownership removes the merge rationale).
 4. **Cross-stream data passes only through the frozen contracts** (§4) — never through direct imports of another module's internals.
 
 **Merge-conflict hotspots and their mitigations:**
@@ -91,8 +91,8 @@ The system decomposes into ~13 domains — foundation/contracts, ingestion, dete
 |---|---|---|
 | `aiops/common/*` (prom, store, config) | High | Single owner: Dev 1. Others import read-only. |
 | Top-level `kustomization.yaml` | High (list-merge) | Each module = one self-contained manifest file (Dev 1 owns the top-level list). |
-| `requirements.txt` | Medium | Per-module `requirements-<module>.txt`; Dev 1 owns only the thin base. |
-| `experiment/schema.sql` | Low | Dev 1 owns the DDL; Dev 3/4 only read/write rows. |
+| `requirements.txt` | Low (solo) | Single base file; per-module extras commented, no split. |
+| `experiment/schema.sql` | Low | Dev 1 owns the DDL; Sanmith/4 only read/write rows. |
 | `inference` `kind` vocabulary | Medium (semantic) | Frozen in Contract A; adding a `kind` is a reviewed contract change, not a silent edit. |
 | `Makefile`, `README.md`, `docs/` | Low | Dev 1 curates; per-module notes live in each module's own README. |
 
@@ -109,9 +109,9 @@ Dev 1 authors and owns these; Dev 2/3/4 review and sign off in a ~1-hour kickoff
 | Detect (Dev 2) | `detect` | `anomaly_score`, `anomaly_score_seq`, `anomaly_flag` | score∈[0,1] / flag | `detector`, `threshold`, `features` |
 | RCA (Dev 2) | `rca` | `culprit_rank` | rank (1=top) | `score`, `incident_id`, `graph_edges` |
 | Explain (Dev 2) | `explain` | `attribution` | top weight | `target_module`, `shap` |
-| Predict (Dev 3) | `predict` | `breach_prob`, `breach_duration_est` | prob / seconds | `horizon_s`, `threshold` |
-| Forecast (Dev 3) | `forecast` | `forecast_p95`, `forecast_p95_snaive`, `forecast_p95_tree` | predicted p95 ms | `horizon_s`, `model` |
-| Scaler (Dev 3) | `scaler` | `replicas_target` | desired replicas | `current`, `reason`, `cooldown_s`, `bounds` |
+| Predict (Sanmith) | `predict` | `breach_prob`, `breach_duration_est` | prob / seconds | `horizon_s`, `threshold` |
+| Forecast (Sanmith) | `forecast` | `forecast_p95`, `forecast_p95_snaive`, `forecast_p95_tree` | predicted p95 ms | `horizon_s`, `model` |
+| Scaler (Sanmith) | `scaler` | `replicas_target` | desired replicas | `current`, `reason`, `cooldown_s`, `bounds` |
 
 Remediation and experiment records do **not** go in `inference` — they use the relational tables (Contract D).
 
@@ -152,8 +152,8 @@ D4:  all inference rows ── soft(mock read-API) ──► dashboard, eval
 
 - **Only two true chokepoints.** (1) Contract freeze (D1-001) — a ~1-day kickoff, not a long pole. (2) Live testbed (D1-002/003) — a hard gate only for runtime integration and experiment execution, not for writing module logic (that's what `--selftest` is for).
 - **Every cross-stream edge except the contract freeze is soft** — satisfiable with Phase-0 fixtures. After day 1, all four proceed in parallel with zero waiting.
-- **§9 gates the experiment's *validity*, not the code.** Dev 3 builds against default constants; results publish only once D3-000 is signed off.
-- **No circular dependencies.** The only cycle risk (forecast↔scaler↔runner) is entirely inside Dev 3 — coordination-free.
+- **§9 gates the experiment's *validity*, not the code.** Sanmith builds against default constants; results publish only once D3-000 is signed off.
+- **No circular dependencies.** The only cycle risk (forecast↔scaler↔runner) is entirely inside Sanmith — coordination-free.
 
 ## 6. Critical path
 
@@ -166,7 +166,7 @@ D1-001 contracts ───┼─► D1-002/003 testbed+store ─► D3-002 forec
                     └────────────────► D3-005 load + D3-006 faults ──┘
                                               └─► D3-007 runner ─► D3-008 analysis ─► QA-003 ─► RESULT
 ```
-This runs through **Dev 1 (foundation) then Dev 3 (contribution)**, gated by the team's §9 sign-off. It is the longest pole — protect Dev 3's time.
+This runs through **Dev 1 (foundation) then Sanmith (contribution)**, gated by the team's §9 sign-off. It is the longest pole — protect Sanmith's time.
 
 **B) To the full 7-module demo:** add Dev 2 (diagnosis) and Dev 4 (surfaces) — both run fully in parallel off the same foundation, **not** on path A. They converge at QA-002 (E2E flow).
 
@@ -180,15 +180,15 @@ Durations are relative phases, not calendar promises.
 
 **Phase 1 — Parallel build against fixtures (the long stretch; zero cross-blocking).**
 
-| Dev 1 | Dev 2 | Dev 3 | Dev 4 |
+| Dev 1 | Dev 2 | Sanmith | Dev 4 |
 |---|---|---|---|
 | testbed, store, exp schema, ingestion, deploy skeleton | IF, LSTM-AE, graph, ranking, SHAP | predict, forecast, scaler, HPA, load, faults | remediation, read-API, dashboard (all vs mocks) |
 
 Every stream passes `--selftest`. Dev 1 finishes the live testbed first so others swap mocks for the real cluster as it lands.
 
-**Phase 2 — Integration (owned, not ambient).** INT-002 cluster assembly (Dev 1) → INT-003 live data-flow (Dev 4) + INT-004 experiment integration (Dev 3) + INT-005 remediation integration (Dev 4).
+**Phase 2 — Integration (owned, not ambient).** INT-002 cluster assembly (Dev 1) → INT-003 live data-flow (Dev 4) + INT-004 experiment integration (Sanmith) + INT-005 remediation integration (Dev 4).
 
-**Phase 3 — Experiment execution & QA (§9 signed off by now).** Dev 3 runs ≥20 paired trials across regimes × faults, then D3-008 analysis. QA-002 (E2E), QA-003 (validity audit), QA-004 (quality gates), SEC-001 (guardrails) run in parallel. *Exit gate: CI'd primaries + separate negative-control section + all guardrail checks green.*
+**Phase 3 — Experiment execution & QA (§9 signed off by now).** Sanmith runs ≥20 paired trials across regimes × faults, then D3-008 analysis. QA-002 (E2E), QA-003 (validity audit), QA-004 (quality gates), SEC-001 (guardrails) run in parallel. *Exit gate: CI'd primaries + separate negative-control section + all guardrail checks green.*
 
 **Phase 4 — Should/Nice polish (only if time).** Ensemble/NL, failure modes, dashboard extras, auto-remediation. All non-blocking; drop first under time pressure.
 
@@ -204,7 +204,7 @@ Critical-path root and contract authority. Owns `cluster/`, `deploy/{timescaledb
 **Developer 2 — Diagnosis (detect · rca · explain)** → [`tickets/DEV2_TICKETS.md`](tickets/DEV2_TICKETS.md)
 Says what's wrong, ranks why, explains the flag — fully offline-testable, never touches infra control, never blocks the contribution. Owns `aiops/{detect,rca,explain}/*`. Writes only the documented `kind` rows via `store.py`; consumes the Contract-C frame via `sample_frame()` until the live bridge lands. Tickets D2-001…D2-007 (+ QA-004 detect half). **Stream guardrail: RCA output is a ranking, not causal proof — in every output and comment (D2-004).**
 
-**Developer 3 — Prediction, forecast & the contribution** → [`tickets/DEV3_TICKETS.md`](tickets/DEV3_TICKETS.md)
+**Sanmith — Prediction, forecast & the contribution** → [`tickets/DEV3_TICKETS.md`](tickets/DEV3_TICKETS.md)
 The project's sole scientific contribution, kept under one owner for methodological coherence. Owns `aiops/{predict,forecast,scaler}/*`, `experiment/{load,faults,runner,analysis}/*`, `deploy/platform/base/hpa-*.yaml`. Builds the forecast-assisted hybrid scaler, the tuned-HPA comparator, the load/fault harness, the paired-trial runner, and the analysis. Tickets D3-000…D3-009 (+ INT-004, QA-003 validity audit, QA-004 forecast/predict half). **Stream guardrails: negative controls mandatory + reported separately; chronological holdout + infected-period exclusion + ≥20 randomized paired reps; genuinely tuned HPA; server-side max-replica cap. D3-000 §9 constants need advisor sign-off — no result is valid until then.**
 
 **Developer 4 — Act, surface & measure** → [`tickets/DEV4_TICKETS.md`](tickets/DEV4_TICKETS.md)
@@ -221,7 +221,7 @@ The two human-facing surfaces + evaluation, all pure consumers of module outputs
 | INT-001 | Dev 1 | Contracts A–G frozen, fixtures published, kickoff sign-off recorded |
 | INT-002 | Dev 1 | `make up && make deploy` brings every module Ready on the testbed |
 | INT-003 | Dev 4 | One real signal traverses frames → detect/rca/predict/forecast → `inference` → read-API → dashboard |
-| INT-004 | Dev 3 | One full paired trial runs end-to-end (scaler↔forecast↔HPA↔load↔faults↔runner↔results) |
+| INT-004 | Sanmith | One full paired trial runs end-to-end (scaler↔forecast↔HPA↔load↔faults↔runner↔results) |
 | INT-005 | Dev 4 | Evidence bundle → approval → k8s scale/restart → audit row, on the live cluster |
 
 **Testing — the one non-negotiable gate.** Every module ships an offline assert-based `python -m aiops.<module> --selftest` (no framework, no cluster). **QA-001: `make selftest` must be green before any merge to main** — the single merge gate. Then quality gates: QA-002 (E2E fault→…→dashboard), QA-003 (**experiment validity audit** — chronological holdout, infected-period exclusion, ≥20 randomized paired reps, negative controls present + segregated; a failure invalidates results, make it loud), QA-004 (PR-AUC ≥ target; forecast beats both baselines; detector FPR bounded — all labeled *instrument-quality metric, not reliability proof*).

@@ -1,4 +1,4 @@
-# Developer 3 — Tickets
+# Sanmith — Tickets
 ## Prediction, Forecasting & the Contribution (Scaler + Experiment)
 
 **Mission:** Forecast near-term load/breach, drive the hybrid scaler, and run the matched experiment that is the project's sole scientific contribution. Guard the methodology like it's the thesis — because it is.
@@ -6,7 +6,7 @@
 **How to use this file (prepend to every AI prompt below):**
 > You are in the `aiops-platform` monorepo. Read `ARCHITECTURE.md`, `TECHNICAL_ARCHITECTURE.md`, `PARALLEL_DEV_PLAN.md`, and `experiment/DECISIONS.md` first. Rules: reuse `aiops/common/{prom,store,config}.py` (import, never re-implement); read config from env vars only; every module ships an offline `python -m aiops.<module> --selftest` (assert-based, no framework, no cluster) as its only test; edit only files inside your owned directories; never surface the retired claims ("first integrated platform", "integration is novel", "forecast accuracy proves reliability", "RCA proves causality", "human approval makes remediation safe", "Sock Shop generalizes to production"); keep it minimal — no speculative abstractions.
 
-**Files you own:** `aiops/predict/*`, `aiops/forecast/*`, `aiops/scaler/*`, `experiment/{load,faults,runner,analysis}/*`, `deploy/platform/base/hpa-*.yaml`, `requirements-{predict,forecast,scaler,experiment}.txt`.
+**Files you own:** `aiops/predict/*`, `aiops/forecast/*`, `aiops/scaler/*`, `experiment/{load,faults,runner,analysis}/*`, `deploy/platform/base/hpa-*.yaml` (deps live in the base `requirements.txt` — uncomment the prophet extra for forecast).
 
 **Files to avoid:** `aiops/common/*` (import only), `experiment/schema.sql` (Dev 1 owns the DDL — you consume it), the dashboard/eval rendering (Dev 4).
 
@@ -32,7 +32,7 @@
 **Build:** Prophet/seasonal forecast feeding the scaler; must beat seasonal-naive + tree baselines.
 **Done when:** main forecast error < both baselines on the fixture; baselines logged alongside; `--selftest` green.
 **Prompt:**
-> In `aiops/forecast/`, Prophet/seasonal forecast of per-service p95/load feeding the scaler; write `forecast_p95` AND the two baselines `forecast_p95_snaive`, `forecast_p95_tree`. Add a seasonality gate. `--selftest` asserts the main forecast beats both baselines on the fixture. prophet in `requirements-forecast.txt`.
+> In `aiops/forecast/`, Prophet/seasonal forecast of per-service p95/load feeding the scaler; write `forecast_p95` AND the two baselines `forecast_p95_snaive`, `forecast_p95_tree`. Add a seasonality gate. `--selftest` asserts the main forecast beats both baselines on the fixture. Uncomment the prophet extra in `requirements.txt`.
 
 ### D3-003 — Forecast-assisted hybrid scaler (the contribution) · **Must** · deps: D3-002, D3-000 · Phase 1
 **Build:** forecast → desired replicas with predeclared map, cooldown, bounds; writes `replicas_target`; scales via k8s API.
@@ -91,4 +91,4 @@ PR-AUC ≥ target for predict; forecast error < seasonal-naive + tree baselines.
 
 ---
 
-**Definition of done (Dev 3):** scaler + HPA run head-to-head under all regimes × faults; results tables populate; analysis emits CI'd primaries + a separate negative-control section; every §9 constant used is the signed-off value. **No result is presented until D3-000 is signed off.**
+**Definition of done (Sanmith):** scaler + HPA run head-to-head under all regimes × faults; results tables populate; analysis emits CI'd primaries + a separate negative-control section; every §9 constant used is the signed-off value. **No result is presented until D3-000 is signed off.**

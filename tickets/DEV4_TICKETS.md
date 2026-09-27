@@ -6,7 +6,7 @@
 **How to use this file (prepend to every AI prompt below):**
 > You are in the `aiops-platform` monorepo. Read `ARCHITECTURE.md`, `TECHNICAL_ARCHITECTURE.md`, `PARALLEL_DEV_PLAN.md`, and `SECURITY_AND_ACCESS.md` first. Rules: reuse `aiops/common/{prom,store,config}.py` (import, never re-implement); read config from env vars only; Python modules ship an offline `--selftest`; edit only files inside your owned directories; never surface the retired claims ("first integrated platform", "integration is novel", "forecast accuracy proves reliability", "RCA proves causality", "human approval makes remediation safe", "Sock Shop generalizes to production"); keep it minimal — no speculative abstractions.
 
-**Files you own:** `aiops/remediate/*`, `aiops/dashboard/*` (React/Vite frontend + Express read-API), the evaluation/reporting layer, deferred `aiops/auth/*`, `requirements-remediate.txt`, dashboard `package.json`.
+**Files you own:** `aiops/remediate/*`, `aiops/dashboard/*` (React/Vite frontend + Express read-API), the evaluation/reporting layer, deferred `aiops/auth/*`, dashboard `package.json` (remediate needs no extra beyond the base `requirements.txt`).
 
 **Files to avoid:** `aiops/common/*` (import/read-only), any ML module logic, `experiment/*` internals (you read the results tables via the read-API, you don't run trials).
 

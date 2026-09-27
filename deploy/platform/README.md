@@ -18,10 +18,10 @@ base/
   ingest-cronjob.yaml    # Dev 1
   detect.yaml            # Dev 2
   rca.yaml               # Dev 2
-  predict.yaml           # Dev 3
-  forecast.yaml          # Dev 3
-  scaler.yaml            # Dev 3
-  hpa-*.yaml             # Dev 3 (tuned-HPA baseline)
+  predict.yaml           # Sanmith
+  forecast.yaml          # Sanmith
+  scaler.yaml            # Sanmith
+  hpa-*.yaml             # Sanmith (tuned-HPA baseline)
   remediate.yaml         # Dev 4
   explain.yaml           # Dev 2
   dashboard.yaml         # Dev 4
