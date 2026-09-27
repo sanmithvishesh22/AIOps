@@ -21,6 +21,20 @@ helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
 
 echo "==> [4/6] Sock Shop"
 kubectl apply -f https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml
+# carts-db/orders-db ship as unpinned `mongo`; modern mongo refuses to start on the
+# Docker-Desktop VM kernel (>=6.19, MongoDB SERVER-121912). Pin to 4.4 — pre-guard,
+# arm64-native, and this test data is ephemeral so mongo durability is irrelevant.
+kubectl -n sock-shop set image deploy/carts-db  "*=mongo:4.4"
+kubectl -n sock-shop set image deploy/orders-db "*=mongo:4.4"
+# catalogue-db (seeded MySQL) and the rabbitmq container ship with memory limits too
+# low for this setup — both OOMKill (exit 137) in a restart loop. 512Mi wasn't enough
+# for either; give them 1Gi. These are ops knobs, not §9 research constants.
+kubectl -n sock-shop set resources deploy/catalogue-db --limits=memory=1Gi --requests=memory=512Mi
+kubectl -n sock-shop set resources deploy/rabbitmq -c rabbitmq --limits=memory=1Gi --requests=memory=512Mi
+# rabbitmq 3.6.8's Erlang VM spawns one scheduler per visible CPU (10 here) and
+# preallocates a big heap at startup — OOMs even at 1Gi. Cap schedulers to shrink its
+# footprint directly; more effective (and lighter on the node) than raising the limit.
+kubectl -n sock-shop set env deploy/rabbitmq -c rabbitmq RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS="+S 2:2"
 kubectl -n sock-shop rollout status deploy/front-end --timeout=5m || true
 
 echo "==> [5/6] Chaos Mesh"
