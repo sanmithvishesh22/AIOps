@@ -7,8 +7,9 @@
 -- TECHNICAL_ARCHITECTURE.md §4.2–4.4.
 --
 -- SLO/horizon columns are stamped on every run so a result is never read without the
--- threshold it was judged against. Those values are §9-owed (experiment/DECISIONS.md,
--- NOT signed off) — this schema stores whatever is predeclared, it does not pick them.
+-- threshold it was judged against. Those values are §9 constants (experiment/DECISIONS.md):
+-- desk values owner+advisor-signed 2026-09-26, the ⚙️ anchors provisional pending the
+-- characterization run — this schema stores whatever is predeclared, it does not pick them.
 
 -- 4.2 experiment_run — one row per matched trial (the paired-analysis backbone).
 CREATE TABLE IF NOT EXISTS experiment_run (

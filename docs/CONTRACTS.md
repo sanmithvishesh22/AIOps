@@ -9,6 +9,14 @@ only by explicit team agreement.** Authoritative sources: `PARALLEL_DEV_PLAN.md`
 The Python package is `aiops` (never `platform` — a top-level `platform` package
 shadows the stdlib module and breaks pandas). Modules run as `python -m aiops.<module>`.
 
+**Freeze status — signed off 2026-09-27 (owner, sanmithvishesh; all lanes).** Contracts
+A–G (shapes, signatures, `kind` vocabularies, env-var set) are frozen and change only by
+explicit owner agreement. This freezes the *interfaces*, not the two known post-freeze
+calibration items: the Contract-B live-label verification (ticket A1, see §B) and the
+provisional ⚙️ §9 *values* in Contract G (tracked in `experiment/DECISIONS.md`, still
+pending the characterization run). Fixtures verified against the frozen shapes on the
+same date — `sample_frame()`, `sample_inference_rows()`, `--selftest` green.
+
 ---
 
 ## A — `inference` write/read contract (the linchpin)
@@ -29,9 +37,9 @@ so modules and the dashboard agree without coupling:
 | Detect (Dev 2) | `detect` | `anomaly_score`, `anomaly_score_seq`, `anomaly_flag` | score ∈ [0,1] / flag | `detector`, `threshold`, `features` |
 | RCA (Dev 2) | `rca` | `culprit_rank` | rank (1 = top) | `score`, `incident_id`, `graph_edges` |
 | Explain (Dev 2) | `explain` | `attribution` | top weight | `target_module`, `shap` |
-| Predict (Dev 3) | `predict` | `breach_prob`, `breach_duration_est` | prob / seconds | `horizon_s`, `threshold` |
-| Forecast (Dev 3) | `forecast` | `forecast_p95`, `forecast_p95_snaive`, `forecast_p95_tree` | predicted p95 ms | `horizon_s`, `model` |
-| Scaler (Dev 3) | `scaler` | `replicas_target` | desired replicas | `current`, `reason`, `cooldown_s`, `bounds` |
+| Predict (Sanmith) | `predict` | `breach_prob`, `breach_duration_est` | prob / seconds | `horizon_s`, `threshold` |
+| Forecast (Sanmith) | `forecast` | `forecast_p95`, `forecast_p95_snaive`, `forecast_p95_tree` | predicted p95 ms | `horizon_s`, `model` |
+| Scaler (Sanmith) | `scaler` | `replicas_target` | desired replicas | `current`, `reason`, `cooldown_s`, `bounds` |
 
 Remediation and experiment records do **not** go in `inference` — they use the
 relational tables (Contract D). `RCA is a ranking, not causal proof` — the vocabulary

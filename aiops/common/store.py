@@ -4,8 +4,9 @@ joinable for the dashboard and the experiment analysis.
 
 Schema:
   inference(ts, module, service, kind, value, meta jsonb)
-    module  = detect|rca|predict|forecast|scaler|remediate|explain
-    kind    = e.g. anomaly_score, severity_rank, breach_prob, forecast_p95, replicas_target
+    module  = detect|rca|explain|predict|forecast|scaler  (remediation uses the
+              relational tables in experiment/schema.sql, not inference)
+    kind    = e.g. anomaly_score, culprit_rank, breach_prob, forecast_p95, replicas_target
     value   = the number; meta = anything structured (feature attributions, etc.)
 """
 from __future__ import annotations
