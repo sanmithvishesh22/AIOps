@@ -4,7 +4,10 @@ The Express read-API that surfaces module output for the dashboard. Six GET rout
 over `inference` and the experiment tables, **read-only, localhost-only, no auth** —
 a deliberate v1 constraint (`docs/CONTRACTS.md` §E, `SECURITY_AND_ACCESS.md`,
 `TECHNICAL_ARCHITECTURE.md` §10), not an oversight. The React/Vite UI is a separate
-ticket (D4-003); this ticket is the read side only.
+ticket (D4-003); this ticket is the read side only. The UI lives in
+[`ui/`](ui/README.md) — its README covers mock/live startup, the mode semantics, and
+the read-only live queue; the deferred live control path is documented, design only,
+in [`CONTROL_ADAPTER.md`](CONTROL_ADAPTER.md).
 
 **Status:** D4-002 code complete and offline-tested (`npm test`, `python -m aiops.dashboard
 --selftest`). Live database integration (real TimescaleDB rows, the deployed NodePort
