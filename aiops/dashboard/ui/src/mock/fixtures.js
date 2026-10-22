@@ -2,7 +2,8 @@
 //
 // These rows are hand-written to mirror the *shapes* the read-API returns —
 // Contract A for the four inference views, the remediation_action columns for
-// the queue — so the views are exercised against exactly the documented fields.
+// the queue, and Contract-D {run, result} records for evaluation — so the views
+// are exercised against exactly the documented fields.
 // They are NOT live data and must never be presented as such: the shell always
 // shows the mock/live mode, and mock decisions are simulated in this browser.
 //
@@ -112,5 +113,52 @@ export const FIXTURES = Object.freeze({
       status: 'failed', decided_by: 'demo-operator', decided_at: BASE - 2950,
       applied_at: null, outcome: 'timeout: replicas did not converge to 6 (desired=4, replicas=4)',
       run_id: null },
+  ],
+  // Experiment records mirror the read-API shape { run, result: {...} | null }.
+  // The scorecards contain only the documented Contract-D result fields — no
+  // PR-AUC, forecast-error, CI, or effect-size values are invented for mock mode.
+  experiments: [
+    { run: { run_id: 501, started_at: BASE - 10000, ended_at: BASE - 8800,
+        pair_id: 'p-mock-1', policy: 'forecast_hybrid', workload_regime: 'spike',
+        fault_class: 'cpu_stress', is_negative_control: false, seed: 11,
+        slo_p95_ms: 300, slo_error_rate: 0.01, horizon_s: 120,
+        notes: 'target_util=0.70, cooldown 30s/300s' },
+      result: { slo_breach_duration_s: 12.5, breaching_requests: 40,
+        breaching_request_ratio: 0.25, pod_minutes: 3.5, scaling_actions: 2,
+        oscillations: 1, mttd_s: 4.0, rca_top1_correct: true,
+        remediation_success: true, extra: { note: 'synthetic fixture' } } },
+    { run: { run_id: 502, started_at: BASE - 10000, ended_at: BASE - 8800,
+        pair_id: 'p-mock-1', policy: 'hpa_tuned', workload_regime: 'spike',
+        fault_class: 'cpu_stress', is_negative_control: false, seed: 11,
+        slo_p95_ms: 300, slo_error_rate: 0.01, horizon_s: 120,
+        notes: 'matched reactive baseline' },
+      result: { slo_breach_duration_s: 31.2, breaching_requests: 96,
+        breaching_request_ratio: 0.42, pod_minutes: 3.1, scaling_actions: 4,
+        oscillations: 3, mttd_s: 8.5, rca_top1_correct: true,
+        remediation_success: true, extra: null } },
+    { run: { run_id: 503, started_at: BASE - 7000, ended_at: null,
+        pair_id: 'p-mock-2', policy: 'forecast_hybrid', workload_regime: 'bursty',
+        fault_class: 'pod_kill', is_negative_control: false, seed: 12,
+        slo_p95_ms: 300, slo_error_rate: 0.01, horizon_s: 120,
+        notes: 'scorecard not written yet' },
+      result: null },
+    { run: { run_id: 504, started_at: BASE - 6000, ended_at: BASE - 4800,
+        pair_id: 'p-mock-3', policy: 'hpa_tuned', workload_regime: 'stationary',
+        fault_class: 'network_delay', is_negative_control: true, seed: 13,
+        slo_p95_ms: 300, slo_error_rate: 0.01, horizon_s: 120,
+        notes: 'negative control: scaling cannot remove wire delay' },
+      result: { slo_breach_duration_s: 42.0, breaching_requests: 120,
+        breaching_request_ratio: 0.5, pod_minutes: 2.8, scaling_actions: 1,
+        oscillations: 0, mttd_s: 6.2, rca_top1_correct: true,
+        remediation_success: false, extra: null } },
+    { run: { run_id: 505, started_at: BASE - 6000, ended_at: BASE - 4800,
+        pair_id: 'p-mock-3', policy: 'forecast_hybrid', workload_regime: 'stationary',
+        fault_class: 'mem_leak', is_negative_control: true, seed: 13,
+        slo_p95_ms: 300, slo_error_rate: 0.01, horizon_s: 120,
+        notes: 'negative control: replicas delay but do not cure a leak' },
+      result: { slo_breach_duration_s: 58.4, breaching_requests: 180,
+        breaching_request_ratio: 0.6, pod_minutes: 3.2, scaling_actions: 2,
+        oscillations: 1, mttd_s: 7.4, rca_top1_correct: false,
+        remediation_success: false, extra: null } },
   ],
 });

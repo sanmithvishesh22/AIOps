@@ -35,7 +35,7 @@ function ModeControl({ mode, onChange }) {
 }
 
 // The dashboard shell: title + subtitle, the mock/live indicator, navigation for
-// the five views, and the footer that states the v1 posture.
+// the six views, and the footer that states the v1 posture.
 export default function Shell({ mode, onModeChange, views, activeViewId, onNavigate, children }) {
   return (
     <div className="shell">
@@ -47,7 +47,8 @@ export default function Shell({ mode, onModeChange, views, activeViewId, onNavig
             <h1>AIOps dashboard</h1>
             <p className="subtitle">
               Read-only observability over the Contract-E API: anomaly feed, RCA ranking,
-              prediction alerts, forecasts, and the remediation approval queue.
+              prediction alerts, forecasts, the remediation approval queue, and
+              evaluation &amp; reporting.
             </p>
           </div>
           <ModeControl mode={mode} onChange={onModeChange} />

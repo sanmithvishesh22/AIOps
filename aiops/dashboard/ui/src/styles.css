@@ -265,6 +265,83 @@ code {
   max-width: 88ch;
 }
 
+.section-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-top: 22px;
+}
+
+.section-heading-row .view-header {
+  flex: 1 1 460px;
+  margin-bottom: 10px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  display: grid;
+  gap: 2px;
+}
+
+.summary-label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.summary-detail {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.cell-stack {
+  display: grid;
+  gap: 1px;
+}
+
+.cell-subtle {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.unavailable-label {
+  color: #71450a;
+  font-weight: 600;
+}
+
+.negative-section {
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+}
+
+.export-note {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  margin-top: 18px;
+  max-width: 92ch;
+}
+
 .semantic-label {
   display: inline-block;
   font-size: 1.02rem;

@@ -1,16 +1,18 @@
-# aiops/dashboard/ui — React/Vite dashboard UI (D4-003)
+# aiops/dashboard/ui — React/Vite dashboard UI (D4-003, D4-006)
 
-The browser surface for the platform: five views — anomaly feed, RCA ranking,
-prediction alerts, forecast, remediation queue — over the Contract-E read-only API
-(D4-002, one directory up). It is **mock-first**: the default mode renders
-hand-written synthetic fixtures with **no backend at all**, so the UI is fully
-usable (and testable) before a database or cluster exists. **Live mode is read-only**;
+The browser surface for the platform: six views — anomaly feed, RCA ranking,
+prediction alerts, forecast, remediation queue, and evaluation & reporting — over
+the Contract-E read-only API (D4-002, one directory up). It is **mock-first**: the
+default mode renders hand-written synthetic fixtures with **no backend at all**, so
+the UI is fully usable (and testable) before a database or cluster exists. **Live mode
+is read-only**;
 the remediation queue shows audit records but its approve/reject/execute controls are
 deliberately disabled — live control is deferred to a future loopback-only control
 adapter, documented (design only) in [`../CONTROL_ADAPTER.md`](../CONTROL_ADAPTER.md).
 
-**Status:** D4-003 code complete and offline-tested (`npm test`, `npm run build`, plus
-the read-API and D4-001 regressions). Live control and live database integration are
+**Status:** D4-003 and the frontend-only part of D4-006 are code complete and
+offline-tested (`npm test`, `npm run build`, plus the read-API and D4-001 regressions).
+Live control, live database integration, and the missing D3-008 analysis output are
 **not implemented / not verified here** — see "Honest limits" at the end.
 
 ## Quick start — mock mode (no backend)
@@ -70,9 +72,13 @@ carries a "simulated" marker, and mock remediation rows carry a "Simulated" chip
 | Prediction alerts | `GET /api/predictions` | breach probability and estimated breach duration |
 | Forecast | `GET /api/forecasts` | `forecast_p95` against its two baselines; carries **"Instrument metric, not reliability proof."** |
 | Remediation queue | `GET /api/remediations` (live) / in-browser fixtures (mock) | audit records; live controls disabled with the reason stated |
+| Evaluation & reporting | `GET /api/experiments` | per-run scorecards, separate negative controls, CSV export; carries **"Instrument metrics, not reliability proof."** |
 
-`GET /api/experiments` is **out of D4-003 scope** by instruction — evaluation views
-are the separate D4-006 ticket; the read-API endpoint exists and is untouched.
+Evaluation & reporting (D4-006) shows only the metrics actually present in the
+Contract-E experiment record. PR-AUC, forecast error vs the two baselines, primary
+outcome confidence intervals, and effect sizes are labelled **"Unavailable — upstream
+evaluation output not present"** until D3-008 produces them; nothing is calculated in
+the browser from aggregate rows.
 
 Every view renders four explicit states: **loading**, **empty**, **ready**, **error**.
 An empty API answer (`200` with `[]`) is a valid **empty state** ("no data retained"),
@@ -108,7 +114,7 @@ into live — live mode reads only from the API and shows only server rows (asse
 
 ## Live mode is read-only by construction
 
-- The only network code is `src/api/live.js`: one `GET` per resource, five endpoints,
+- The only network code is `src/api/live.js`: one `GET` per resource, six endpoints,
   no write path anywhere in the module — there is nothing in the UI that can approve,
   reject, or execute against a server. A source-scanning test asserts that no HTTP
   method other than `GET` is constructed and that only the live adapter touches
@@ -130,21 +136,22 @@ into live — live mode reads only from the API and shows only server rows (asse
 | `src/App.jsx` | View routing, mode state, client selection, mock-store creation |
 | `src/api/` | `mode.js` (parsing), `client.js` (mock/live switch), `live.js` (GET-only fetch), `mock.js`, `errors.js` (sanitized messages), `useResource.js` (four-state hook) |
 | `src/mock/` | `fixtures.js` (synthetic Contract-shaped rows), `remediationStore.js` (lifecycle mirror) |
-| `src/views/` | The five views (remediation branches: `MockRemediationQueue.jsx` / `LiveRemediationQueue.jsx`) |
+| `src/views/` | The six views (remediation branches: `MockRemediationQueue.jsx` / `LiveRemediationQueue.jsx`; evaluation in `EvaluationReporting.jsx`) |
+| `src/lib/csv.js`, `src/lib/evaluation.js` | RFC-4180 CSV export and the experiment-record/scorecard helpers |
 | `src/components/` | `Shell` (header/mode/nav), `AsyncBody` (state rendering), list/format helpers |
 | `test/*.test.jsx` | Vitest + Testing Library suite |
 | `vitest.setup.js` | jest-dom matchers only — at the root, so the Express test run never sees it |
 
 Deliberate non-choices: **no router, no state library, no charting library, no UI
-framework** — plain React function components and one stylesheet (29 files under
-`src/`, `src/styles.css` included). The five tabs are a `useState` in `App.jsx`;
-anything heavier would be a dependency tax this ticket does not need.
+framework** — plain React function components and one stylesheet. The six tabs are a
+`useState` in `App.jsx`; anything heavier would be a dependency tax these tickets do
+not need.
 
 ## Tests and build (offline — no database, no cluster)
 
 ```powershell
 cd aiops/dashboard/ui
-npm test               # vitest run — 5 files, 55 tests, jsdom
+npm test               # vitest run — 6 files, 72 tests, jsdom
 npm run build          # vite build → dist/ (gitignored)
 npm run preview        # serve the built bundle on 127.0.0.1
 ```
@@ -152,10 +159,13 @@ npm run preview        # serve the built bundle on 127.0.0.1
 The suite covers: mode parsing and the mode boundary (mock contacts no network; live
 sends GETs only; a mock decision never leaks to live), the mock lifecycle (explicit
 approval, separate execution, refusals for duplicates/invalid moves, required operator
-name), rendering and mapping of all five views from mock and live shapes, the
+name), rendering and mapping of all six views from mock and live shapes, the
 four-state model (loading/empty/ready/error — `[]` is empty, not an error, not sample
-data), and the mandatory labels ("Ranking, not causality." / "Instrument metric, not
-reliability proof."). Live tests stub `fetch` — nothing here needs a running server.
+data), the evaluation view's null-result preservation, separate negative controls,
+missing-vs-zero metrics, CSV escaping/empty fields, and the mandatory labels
+("Ranking, not causality." / "Instrument metric, not reliability proof." / "Instrument
+metrics, not reliability proof."). Live tests stub `fetch` — nothing here needs a
+running server.
 
 Test files are `*.test.jsx` **on purpose**: the Express package's `npm test`
 (`node --test`) discovers any `.js` under a `test/` directory in `aiops/dashboard`,
@@ -173,6 +183,11 @@ and never accidentally executes this one.
   deployment needs real auth first.
 - **No secrets in the bundle:** the UI never reads the DSN or any environment value
   except the build-time `VITE_API_MODE` string; it only ever sees API payloads.
+- **Evaluation metrics are limited to what the API returns.** The D3-008 analysis
+  output is not present in the tracked repository/API, so PR-AUC, precision at the
+  ≥70% target, forecast error vs seasonal-naive/tree, primary-outcome confidence
+  intervals, and effect sizes are explicitly unavailable in the view. `result.extra`
+  is exported raw and is not interpreted because its keys/units are undocumented.
 - **The mock's operator name is not identity.** It labels a simulated decision; real
   approvals belong to the audited D4-001 flow with a real `decided_by`. Approval is
   accountability, not safety.

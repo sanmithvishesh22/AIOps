@@ -16,7 +16,7 @@ describe('dashboard shell', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'AIOps dashboard' })).toBeInTheDocument();
     expect(screen.getByText(/Read-only observability over the Contract-E API/)).toBeInTheDocument();
     expect(screen.getByText('Mock data')).toBeInTheDocument();
-    for (const label of ['Anomaly feed', 'RCA ranking', 'Prediction alerts', 'Forecast', 'Remediation queue']) {
+    for (const label of ['Anomaly feed', 'RCA ranking', 'Prediction alerts', 'Forecast', 'Remediation queue', 'Evaluation & reporting']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     }
     expect(screen.getByText(/approval is accountability, not safety/)).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe('dashboard shell', () => {
 
   it('keeps the mode indicator visible on every view and switches views without a reload', async () => {
     await renderApp();
-    for (const label of ['RCA ranking', 'Prediction alerts', 'Forecast', 'Remediation queue', 'Anomaly feed']) {
+    for (const label of ['RCA ranking', 'Prediction alerts', 'Forecast', 'Remediation queue', 'Evaluation & reporting', 'Anomaly feed']) {
       fireEvent.click(screen.getByRole('button', { name: label }));
       expect(screen.getByText('Mock data')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-current', 'page');

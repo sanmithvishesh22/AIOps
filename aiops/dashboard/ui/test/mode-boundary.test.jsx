@@ -52,6 +52,7 @@ describe('mock mode works with no network at all', () => {
       ['Prediction alerts', '82.0%'],
       ['Forecast', 'Instrument metric, not reliability proof.'],
       ['Remediation queue', 'Mock workflow — simulated in this browser only'],
+      ['Evaluation & reporting', 'Instrument metrics, not reliability proof.'],
       ['Anomaly feed', 'Flagged'],
     ];
     for (const [label, probe] of probes) {

@@ -1,5 +1,5 @@
 // The only network code in the UI: GET reads against the Contract-E read-API
-// (five of the six endpoints — the experiments view is out of D4-003 scope).
+// (the six documented endpoints, including experiments for evaluation/reporting).
 //
 // There is deliberately no write path in this module: nothing here can approve,
 // reject, or execute anything, in any mode. Live remediation control is deferred

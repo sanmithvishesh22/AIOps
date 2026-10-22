@@ -4,6 +4,7 @@ import { createClient } from './api/client.js';
 import Shell from './components/Shell.jsx';
 import { createMockRemediationStore } from './mock/remediationStore.js';
 import AnomalyFeed from './views/AnomalyFeed.jsx';
+import EvaluationReporting from './views/EvaluationReporting.jsx';
 import ForecastView from './views/ForecastView.jsx';
 import PredictionAlerts from './views/PredictionAlerts.jsx';
 import RcaRanking from './views/RcaRanking.jsx';
@@ -15,6 +16,7 @@ export const VIEWS = [
   { id: 'predictions', label: 'Prediction alerts' },
   { id: 'forecasts', label: 'Forecast' },
   { id: 'remediations', label: 'Remediation queue' },
+  { id: 'evaluations', label: 'Evaluation & reporting' },
 ];
 
 function ConfigErrorPage({ message }) {
@@ -54,6 +56,7 @@ export default function App({ initialMode = 'mock', configError = null, fetchImp
       {viewId === 'remediations' && (
         <RemediationQueue mode={mode} read={client.read} store={mockStore} />
       )}
+      {viewId === 'evaluations' && <EvaluationReporting read={client.read} />}
     </Shell>
   );
 }

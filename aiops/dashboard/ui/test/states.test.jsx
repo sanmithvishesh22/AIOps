@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createLiveReader } from '../src/api/live.js';
 import AnomalyFeed from '../src/views/AnomalyFeed.jsx';
+import EvaluationReporting from '../src/views/EvaluationReporting.jsx';
 import ForecastView from '../src/views/ForecastView.jsx';
 import LiveRemediationQueue from '../src/views/LiveRemediationQueue.jsx';
 import PredictionAlerts from '../src/views/PredictionAlerts.jsx';
@@ -46,6 +47,13 @@ const viewCases = [
     loading: /Loading remediation records/,
     empty: 'No remediation records',
     errorTitle: 'Could not load the remediation queue',
+  },
+  {
+    name: 'evaluation & reporting',
+    render: (read) => <EvaluationReporting read={read} />,
+    loading: /Loading experiment runs/,
+    empty: 'No experiment runs',
+    errorTitle: 'Could not load the evaluation view',
   },
 ];
 
