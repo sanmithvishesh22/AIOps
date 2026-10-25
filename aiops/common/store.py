@@ -93,9 +93,20 @@ def recent(module, kind, service=None, since=0.0):
 
 
 def _selftest():
+    base = {"ts": 1000.0, "module": "detect", "service": "orders",
+            "kind": "anomaly_score", "value": -0.73, "meta": {"model": "iforest"}}
+    # Contract A: each required field is mandatory. Test every field in isolation so
+    # a regression cannot hide behind a different missing key.
+    for field in ("ts", "module", "service", "kind"):
+        bad = dict(base)
+        del bad[field]
+        try:
+            normalize([bad])
+            raise AssertionError(f"missing {field} should raise KeyError")
+        except KeyError as exc:
+            assert exc.args == (field,), f"missing {field} raised {exc.args!r}"
     rows = [
-        {"ts": 1000.0, "module": "detect", "service": "orders", "kind": "anomaly_score",
-         "value": -0.73, "meta": {"model": "iforest"}},
+        base,
         {"ts": 1000, "module": "forecast", "service": "orders", "kind": "forecast_p95",
          "value": 612},
     ]
@@ -103,20 +114,58 @@ def _selftest():
     assert t[0][0] == 1000.0 and t[0][4] == -0.73
     assert json.loads(t[0][5])["model"] == "iforest"
     assert t[1][5] is None, "missing meta -> NULL"
-    try:
-        normalize([{"ts": 1, "module": "x"}])  # missing service/kind
-        raise AssertionError("missing keys should raise")
-    except KeyError:
-        pass
     # recent(): service filter is optional and every %s placeholder is bound in order
     sql_all, p_all = _recent_sql("detect", "anomaly_score", None, 1000.0)
     assert "service = %s" not in sql_all and p_all == ("detect", "anomaly_score", 1000.0)
     sql_one, p_one = _recent_sql("detect", "anomaly_score", "orders", 1000.0)
     assert "service = %s" in sql_one and p_one == ("detect", "anomaly_score", "orders", 1000.0)
     assert sql_all.count("%s") == len(p_all) and sql_one.count("%s") == len(p_one)
+    import sys, types
+    saved = sys.modules.get("psycopg2")
+
+    # init(): mock psycopg2 and verify the guarded table/index DDL and hypertable
+    # call. Repeated calls re-issue the same guarded statements; this proves the
+    # client-side calls, NOT live database idempotency (IF NOT EXISTS does that).
+    class _InitCur:
+        def __init__(self, log): self.log = log
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute(self, sql, params=None): self.log.append(sql)
+
+    class _InitConn:
+        def __init__(self, log): self.log = log
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def cursor(self): return _InitCur(self.log)
+
+    init_sql, init_dsns = [], []
+    def _init_connect(dsn):
+        init_dsns.append(dsn)
+        return _InitConn(init_sql)
+    fake = types.ModuleType("psycopg2"); fake.connect = _init_connect
+    sys.modules["psycopg2"] = fake
+    try:
+        init()
+        init()
+    finally:
+        sys.modules.pop("psycopg2", None)
+        if saved is not None:
+            sys.modules["psycopg2"] = saved
+    assert init_sql == [DDL, HYPERTABLE, DDL, HYPERTABLE], \
+        "each init() must issue the guarded DDL then create_hypertable"
+    assert init_dsns == [config.TIMESCALE_DSN] * 2, "init() must use config.TIMESCALE_DSN"
+    ddl_flat = " ".join(DDL.split())
+    assert "CREATE TABLE IF NOT EXISTS inference" in ddl_flat
+    for col in ("ts TIMESTAMPTZ NOT NULL", "module TEXT NOT NULL",
+                "service TEXT NOT NULL", "kind TEXT NOT NULL",
+                "value DOUBLE PRECISION", "meta JSONB"):
+        assert col in ddl_flat, f"DDL missing column: {col}"
+    assert ("CREATE INDEX IF NOT EXISTS inference_lookup "
+            "ON inference (module, service, kind, ts DESC)") in ddl_flat
+    assert "create_hypertable('inference','ts',if_not_exists=>TRUE)" in HYPERTABLE
+
     # insert+read round-trip with psycopg2 mocked (no driver needed) — proves write()
     # normalizes+INSERTs and recent() maps SELECT rows to column-keyed dicts.
-    import sys, types
     seen = []
     class _Cur:
         description = [(c,) for c in ("ts", "module", "service", "kind", "value", "meta")]
