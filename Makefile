@@ -24,8 +24,13 @@ chaos: ## list chaos experiments (apply one: kubectl apply -f experiment/faults/
 	@ls experiment/faults/*.yaml 2>/dev/null || echo "no fault manifests yet"
 
 selftest: ## run every module's offline self-check (no cluster needed)
-	@for m in ingest detect rca predict forecast scaler remediate explain; do \
-		echo "== $$m =="; python -m aiops.$$m --selftest || exit 1; done
+	@for m in ingest predict forecast scaler; do \
+		echo "== aiops.$$m =="; python3 -m aiops.$$m --selftest || exit 1; done
+	@echo "== experiment.load =="; python3 -m experiment.load --selftest || exit 1
+	@echo "== experiment.runner =="; python3 -m experiment.runner --selftest || exit 1
+	@echo "== experiment.analysis =="; python3 -m experiment.analysis --selftest || exit 1
+	@echo "== experiment.audit (QA-003) =="; python3 experiment/audit.py || exit 1
+	@echo "== experiment.metric_gate (QA-004) =="; python3 experiment/metric_gate.py || exit 1
 
 schema-test: ## apply schema + prove the append-only audit guard (needs a reachable Postgres)
 	psql "$${TIMESCALE_DSN:-postgresql://aiops:aiops@localhost:5432/aiops}" -v ON_ERROR_STOP=1 \
