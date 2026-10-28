@@ -1,0 +1,65 @@
+# Tuned HPA baseline (D3-004.1) — the reactive comparator arm.
+#
+# This manifest is the *predeclared* reactive-scaling baseline the
+# forecast-assisted hybrid scaler is compared against. Differences from the
+# scaler are ONLY the signal (CPU vs forecast) — bounds are identical by
+# design (fairness guard, D3-004.3):
+#     minReplicas=2 / maxReplicas=10 == aiops/scaler/config (§9 Decision 4)
+#
+# ⚙️ PLACEHOLDER — CPU target: `averageUtilization` is provisional until the
+# characterization run measures the crossover (D3-000.5; procedure in
+# `deploy/platform/HPA_TUNING.md`). The automated parity check ONLY asserts
+# min/max until D3-000.7 pins the value deliberately.
+#
+# Live apply: kubectl apply --dry-run=server requires the kind testbed (make up).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-front-end
+  namespace: sock-shop            # SOCK_NS: the ONLY namespace under test
+  labels:
+    app.kubernetes.io/name: front-end
+    app.kubernetes.io/part-of: aiops-platform
+    aiops.platform/role: reactive-baseline
+  annotations:
+    aiops.platform/procedure: "deploy/platform/HPA_TUNING.md (D3-004.2, predeclared)"
+    aiops.platform/parity: "min/max asserted against aiops/scaler/config bounds (D3-004.3)"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: front-end
+  minReplicas: 2                  # §9 Decision 4 — identical to the scaler's min
+  maxReplicas: 10                 # ⚠️ parity target: MAX_REPLICAS (denial-of-wallet)
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu                 # the reactive signal (vs the scaler's forecast)
+        target:
+          type: Utilization
+          averageUtilization: 60  # ⚙️ PLACEHOLDER — set by D3-004.2 after measuring
+                                  # the p95 crossover (target = crossover − 10–15%)
+  # Behavior fields are set EXPLICITLY (no silent cluster defaults, D3-004.1).
+  # These mirror the documented k8s v2 defaults: react up immediately
+  # (stabilization 0), shrink down only after a 300 s calm window.
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
