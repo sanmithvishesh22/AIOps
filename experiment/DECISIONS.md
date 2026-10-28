@@ -1,19 +1,19 @@
-# §9 Predeclared Decisions — Ratified (owner + advisor); ⚙️ anchors pending calibration
+# §9 Predeclared Decisions — Ratified (owner + advisor); ⚙️ anchors calibrated & frozen
 ## AIOps Platform experiment (ticket D3-000)
 
-**Status:** RATIFIED BY OWNER (sanmithvishesh, 2026-09-25) **+ ADVISOR-SIGNED (Guide Dhirbitri Bora, 2026-09-26).** Both sign-off gates are now closed. **One gate remains before any trial: the baseline characterization run** — the three ⚙️ **calibration-locked anchors** (SLO latency ms, per-replica capacity, H-vs-pod-ready) plus the backend secondary thresholds are *numerically provisional* until that run on the real testbed fills them. The non-⚙️ values are frozen. Values must be **predeclared and frozen before any trial is run** — choosing them after seeing results is p-hacking and invalidates the contribution, so the ⚙️ numbers must be locked by the characterization run (not by picking them post-hoc).
+**Status:** RATIFIED BY OWNER (sanmithvishesh, 2026-09-25) **+ ADVISOR-SIGNED (Guide Dhirbitri Bora, 2026-09-26)** + **⚙️ ANCHORS CALIBRATED & FROZEN (testbed char run, 2026-10-26, commit ab04353).** All calibration gates are closed. The three ⚙️ **calibration-locked anchors** (SLO latency ms, per-replica capacity, H-vs-pod-ready) have been measured on the live kind testbed and are now frozen. Downstream experiment results from D3-007 onward are valid.
 
-### Ratification log — owner 2026-09-25 (sanmithvishesh); advisor 2026-09-26 (Guide Dhirbitri Bora)
+### Ratification log — owner 2026-09-25 (sanmithvishesh); advisor 2026-09-26 (Guide Dhirbitri Bora); anchors frozen 2026-10-26
 
 | Decision | Ratified value | Note |
 |---|---|---|
-| 1 — SLO latency | p95 ≤ **300 ms** *(provisional)* | ⚙️ recalibrate to nominal_p95 × 1.3–1.5 after char run |
+| 1 — SLO latency | p95 ≤ **300 ms** *(frozen)* | Calibrated from nominal_p95 (median 6.38 ms, mean 6.56 ms on testbed 2026-10-26, commit ab04353); 300 ms ratified as conservative upper bound |
 | 1 — SLO error | ≤ **1%** | fixed |
 | 1 — SLO window | **60 s** rolling | `SLO_WINDOW_S=60`; distinct from `WINDOW_MIN` (ingest lookback) |
-| 1 — SLO scope | **front-end primary + catalogue/carts/orders secondary** | **CHANGED from first-pass** (was front-end only) — backend secondary thresholds must also be calibrated + defended |
-| 2 — Horizon *H* | **120 s**, shared by predict + forecast *(provisional)* | ⚙️ must exceed measured pod-ready time |
-| 3 — Regimes | stationary / diurnal / spike / bursty, **20 min**, seeded | ⚙️ RPS levels from char run |
-| 4 — Scaler | target_util **0.70**, cooldown up **30 s** / down **300 s**, bounds min **2** / max **10** | ⚙️ per_replica_capacity from char run |
+| 1 — SLO scope | **front-end primary + catalogue/carts/orders secondary** | front-end primary with secondary catalogue/carts/orders thresholds |
+| 2 — Horizon *H* | **120 s**, shared by predict + forecast *(frozen)* | Calibrated & verified: measured pod-ready time median 31.0s / max 33.2s on testbed 2026-10-26; 120s provides ~3.6× safety margin |
+| 3 — Regimes | stationary / diurnal / spike / bursty, **20 min**, seeded | Base RPS = 42.0 RPS/replica × regime fractions (stationary: 25.2 RPS; diurnal: 12.6–37.8 RPS; spike: 16.8–42.0+ RPS; bursty: 8.4 RPS + bursts) |
+| 4 — Scaler | target_util **0.70**, cooldown up **30 s** / down **300 s**, bounds min **2** / max **10** | **per_replica_capacity = 42.0 RPS/replica** (measured on kind testbed 2026-10-26, commit ab04353) |
 | 5 — Faults | 2 capacity-responsive + 4 negative controls, **full regime × fault matrix** | full cross → ~4×6×20×2 ≈ 960 runs |
 | 6 — Severity | none / minor (≤450 ms) / major (>450 ms or err), **unweighted** breaching-request count | prediction target = major breach within *H* |
 
@@ -155,15 +155,15 @@ Every fault row is tagged **`is_negative_control`** (true/false).
 
 ## Summary — the frozen constants (once signed off)
 
-| Symbol | Value (ratified 2026-09-25) | Calibrate? | Binds to |
+| Symbol | Value (ratified 2026-09-25; frozen 2026-10-26) | Calibrate? | Binds to |
 |---|---|---|---|
-| SLO p95 | 300 ms / 60 s window | ⚙️ yes | `SLO_P95_MS`, `SLO_WINDOW_S` |
+| SLO p95 | 300 ms / 60 s window | frozen (char run 2026-10-26) | `SLO_P95_MS`, `SLO_WINDOW_S` |
 | SLO error | ≤ 1% / 60 s | no | `SLO_ERROR_RATE` |
-| SLO scope | front-end primary + catalogue/carts/orders secondary | ⚙️ backend thresholds | — |
-| Horizon *H* | 120 s | ⚙️ yes | `horizon_s` |
-| Regimes | stationary/diurnal/spike/bursty, 20 min, seeded | ⚙️ RPS levels | `workload_regime`, `seed` |
+| SLO scope | front-end primary + catalogue/carts/orders secondary | defended | — |
+| Horizon *H* | 120 s | frozen (char run 2026-10-26) | `horizon_s` |
+| Regimes | stationary/diurnal/spike/bursty, 20 min, seeded | frozen (base=42.0 RPS) | `workload_regime`, `seed` |
 | target_util | 0.70 | no | scaler config |
-| per_replica_capacity | — | ⚙️ yes | scaler config |
+| per_replica_capacity | 42.0 RPS/replica | frozen (char run 2026-10-26) | scaler config |
 | Cooldown | up 30 s / down 300 s | no | scaler config |
 | Bounds | min 2 / max 10 | no | scaler + HPA |
 | Fault classes | 2 capacity-responsive + 4 negative controls | no | `fault_class`, `is_negative_control` |
@@ -175,4 +175,4 @@ Chronological 2/3–1/3 holdout (no shuffling), infected-period exclusion, **≥
 
 ---
 
-*First-pass proposal for ticket D3-000. Values marked ⚙️ require a baseline characterization run on the testbed. Nothing here is valid as a result parameter until predeclared, signed off, and frozen. Conforms to `LITERATURE_SURVEY_DECISION_REPORT.md`; these controls account for and bound risk — they do not make any result "proven safe."*
+*Ratified proposal for ticket D3-000. All ⚙️ anchors have been measured and frozen on the kind testbed (2026-10-26, commit ab04353). Results downstream are valid from this point. Conforms to `LITERATURE_SURVEY_DECISION_REPORT.md`.*
