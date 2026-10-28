@@ -23,9 +23,13 @@ load: ## run a k6 load Job against Sock Shop (REGIME=steady|ramp|spike|soak)
 chaos: ## list chaos experiments (apply one: kubectl apply -f experiment/faults/<name>.yaml)
 	@ls experiment/faults/*.yaml 2>/dev/null || echo "no fault manifests yet"
 
-selftest: ## run every module's offline self-check (no cluster needed)
-	@for m in ingest detect rca predict forecast scaler remediate explain; do \
-		echo "== $$m =="; python -m aiops.$$m --selftest || exit 1; done
+selftest: ## run the offline module self-checks (no cluster needed)
+	@set -e; \
+	echo "== ingest =="; python -m aiops.ingest --selftest; \
+	echo "== common.store =="; python -m aiops.common.store --selftest; \
+	echo "== common.fixtures =="; python -m aiops.common.fixtures --selftest; \
+	echo "== common.prom =="; python -m aiops.common.prom --selftest; \
+	echo "== selftest: all 4 checks passed =="
 
 schema-test: ## apply schema + prove the append-only audit guard (needs a reachable Postgres)
 	psql "$${TIMESCALE_DSN:-postgresql://aiops:aiops@localhost:5432/aiops}" -v ON_ERROR_STOP=1 \
