@@ -13,9 +13,12 @@ down: ## delete the whole cluster
 	kind delete cluster --name $(CLUSTER)
 
 deploy: ## re-apply just our components (after code/manifest changes)
-	@out="$$(kubectl kustomize deploy/platform/overlays/local)"; \
+	@out="$$(kubectl kustomize deploy/platform/overlays/local)" || exit $$?; \
 	if [ -n "$$out" ]; then echo "$$out" | kubectl apply -f -; \
 	else echo "no platform module manifests yet — nothing to deploy"; fi
+
+platform-image: ## build the shared aiops:dev image and load it into the kind cluster
+	CLUSTER=$(CLUSTER) bash cluster/platform-image.sh
 
 load: ## run a k6 load Job against Sock Shop (REGIME=steady|ramp|spike|soak)
 	REGIME=$${REGIME:-ramp} envsubst < experiment/load/k6-job.yaml | kubectl apply -f -

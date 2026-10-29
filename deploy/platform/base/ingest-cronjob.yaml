@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ingest
+  labels:
+    app: ingest
+spec:
+  # Provisional local-testbed cadence; not a production guarantee.
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: ingest
+              image: aiops:dev
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "aiops.ingest"]
+              resources:
+                # Requests only, matching the local testbed's existing convention;
+                # no limit so pandas/numpy can exceed the scheduling floor if needed.
+                requests:
+                  cpu: 100m
+                  memory: 256Mi

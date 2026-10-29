@@ -3,4 +3,6 @@ kind: Kustomization
 namespace: aiops
 # Module Deployments/CronJobs get added here as each module lands
 # (ingest, detect, rca, predict, forecast, scaler, remediate, explain, dashboard).
-resources: []
+# Dev 1 is the only editor of this shared list.
+resources:
+  - ingest-cronjob.yaml

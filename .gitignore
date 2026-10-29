@@ -12,3 +12,5 @@ experiment/results/*.csv
 experiment/results/*.parquet
 models/*.pt
 models/*.pkl
+# local scratch diff (never commit)
+store_diff.txt
