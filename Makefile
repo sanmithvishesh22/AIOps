@@ -29,7 +29,9 @@ selftest: ## run the offline module self-checks (no cluster needed)
 	echo "== common.store =="; python -m aiops.common.store --selftest; \
 	echo "== common.fixtures =="; python -m aiops.common.fixtures --selftest; \
 	echo "== common.prom =="; python -m aiops.common.prom --selftest; \
-	echo "== selftest: all 4 checks passed =="
+	echo "== ingest_csv (offline only) =="; python -m aiops.ingest_csv --selftest; \
+	echo "== experiment.schema (static) =="; python experiment/schema_offline_test.py; \
+	echo "== selftest: all 6 checks passed =="
 
 schema-test: ## apply schema + prove the append-only audit guard (needs a reachable Postgres)
 	psql "$${TIMESCALE_DSN:-postgresql://aiops:aiops@localhost:5432/aiops}" -v ON_ERROR_STOP=1 \
