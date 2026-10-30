@@ -36,6 +36,9 @@ selftest: ## run the offline module self-checks (no cluster needed)
 	echo "== experiment.schema (static) =="; python experiment/schema_offline_test.py; \
 	echo "== selftest: all 6 checks passed =="
 
+security-test: ## run the SEC-001 Chaos Mesh namespace-scope guard (offline)
+	python cluster/chaos_scope_offline_test.py
+
 schema-test: ## apply schema + prove the append-only audit guard (needs a reachable Postgres)
 	psql "$${TIMESCALE_DSN:-postgresql://aiops:aiops@localhost:5432/aiops}" -v ON_ERROR_STOP=1 \
 		-f experiment/schema.sql -f experiment/schema_test.sql

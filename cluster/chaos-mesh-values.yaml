@@ -1,0 +1,38 @@
+# SEC-001 (Dev 1 infra half): confine Chaos Mesh to the Sock Shop namespace.
+#
+# Verified against the released chart chaos-mesh/chaos-mesh 2.8.7
+# (https://charts.chaos-mesh.org/chaos-mesh-2.8.7.tgz, sha256
+# c963e0f4ed2e30c1c7e236477f1c31fcf988b171991801bbe392546948436d38).
+# See cluster/README.md for the evidence and the remaining security gaps.
+#
+# Keep this file versioned and re-check it on every chart upgrade. The offline
+# guard (cluster/chaos_scope_offline_test.py, `make security-test`) enforces this
+# exact structure and the approved bootstrap invocation. It is a strict
+# regression check, not a Helm renderer and not a live security proof.
+
+# 2.8.7 values.yaml: "clusterScoped is whether chaos-mesh should manage
+# kubernetes cluster wide chaos". false = namespaced mode; the controller and
+# dashboard target-namespace ClusterRoles are bound with RoleBindings in
+# controllerManager.targetNamespace instead of ClusterRoleBindings.
+clusterScoped: false
+
+controllerManager:
+  # 2.8.7 values.yaml: "targetNamespace only works with clusterScoped is false
+  # (namespace scoped mode). It means namespace which will be injected chaos".
+  # Also exported to the controller/dashboard as TARGET_NAMESPACE.
+  targetNamespace: sock-shop
+  # Keep the chart-managed ServiceAccount. Setting this false would make the
+  # deployment use a pre-existing account with unknown permissions.
+  serviceAccountCreate: true
+
+# Keep the chart's RBAC objects. Setting create false skips the target-namespace
+# RoleBindings that confine the controller/dashboard to SOCK_NS.
+rbac:
+  create: true
+
+# DNSChaos is not part of the ratified experiment taxonomy (experiment/DECISIONS.md
+# Decision 5) and no repository code or manifests use it. Disabling the DNS
+# server removes its Deployment, Service, ConfigMap and RBAC, including an
+# unconditional cluster-level read of namespaces/services/endpoints/pods.
+dnsServer:
+  create: false

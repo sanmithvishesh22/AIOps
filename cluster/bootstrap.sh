@@ -38,8 +38,13 @@ kubectl -n sock-shop set env deploy/rabbitmq -c rabbitmq RABBITMQ_SERVER_ADDITIO
 kubectl -n sock-shop rollout status deploy/front-end --timeout=5m || true
 
 echo "==> [5/6] Chaos Mesh"
+# SEC-001: pin the verified release and apply the namespace-scope values in
+# cluster/chaos-mesh-values.yaml (clusterScoped=false, targetNamespace=sock-shop;
+# the unused DNSChaos DNS server is disabled).
 helm upgrade --install chaos-mesh chaos-mesh/chaos-mesh \
+  --version 2.8.7 \
   --namespace chaos-mesh --create-namespace \
+  --values cluster/chaos-mesh-values.yaml \
   --set chaosDaemon.runtime=containerd \
   --set chaosDaemon.socketPath=/run/containerd/containerd.sock --wait --timeout 10m
 
