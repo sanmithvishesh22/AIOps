@@ -148,9 +148,10 @@ permissions cannot be inspected or constrained here. Consequently:
   refused" therefore needs a second layer: least-privilege creator RBAC plus an
   admission restriction (for example a `ValidatingAdmissionPolicy` or a
   validating webhook) tied to the actual harness identity. That layer is
-  deliberately not invented here; it belongs with the harness owner and must be
-  added once the harness lands. Do not treat this chart configuration as
-  complete isolation.
+  deliberately not invented here; it belongs with the harness owner (Sanmith) and must be
+  added once the harness lands. Dev 4 owns least-privilege ServiceAccounts for the scaler
+  and remediation components; creator-side admission enforcement must not be assigned to Dev 4.
+  Do not treat this chart configuration as complete isolation.
 
 ### Residual cluster-wide surface in chart 2.8.7
 

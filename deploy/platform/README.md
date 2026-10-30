@@ -93,11 +93,11 @@ one-file-per-module rule, which does not identify a single file for Dev 1 to reg
 `PARALLEL_DEV_PLAN.md` assigns the tuned-HPA baseline to Sanmith (D3-004), so ownership
 is unchanged; the file layout is the unresolved part. Whether the baseline is one file
 or several, and the exact path(s) Dev 1 should register, must be clarified before it is
-added to `resources:`.
+added to `resources:`. Dev 1 must not register an HPA manifest until Sanmith and Dev 1 agree on the exact filename and path.
 
 ## Status
 
 The manifest convention is implemented. `base/ingest-cronjob.yaml` is registered, so the
-base list is no longer empty. Registration is not live validation: image build/load,
+base list is no longer empty. D1-005 offline acceptance is complete (Contract-C frame shape, NaN gap preservation, and selftest verified). Registration is not live validation: image build/load,
 CronJob scheduling, Prometheus reachability, and downstream frame delivery remain
 unverified in this environment. No live result is claimed by this document.
