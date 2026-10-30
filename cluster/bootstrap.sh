@@ -38,18 +38,26 @@ kubectl -n sock-shop set env deploy/rabbitmq -c rabbitmq RABBITMQ_SERVER_ADDITIO
 kubectl -n sock-shop rollout status deploy/front-end --timeout=5m || true
 
 echo "==> [5/6] Chaos Mesh"
+# SEC-001: pin the verified release and apply the namespace-scope values in
+# cluster/chaos-mesh-values.yaml (clusterScoped=false, targetNamespace=sock-shop;
+# the unused DNSChaos DNS server is disabled).
 helm upgrade --install chaos-mesh chaos-mesh/chaos-mesh \
+  --version 2.8.7 \
   --namespace chaos-mesh --create-namespace \
+  --values cluster/chaos-mesh-values.yaml \
   --set chaosDaemon.runtime=containerd \
   --set chaosDaemon.socketPath=/run/containerd/containerd.sock --wait --timeout 10m
 
 echo "==> [6/6] our components (TimescaleDB + platform)"
 kubectl apply -k deploy/timescaledb
 kubectl apply -k deploy/monitoring        # ServiceMonitors for Sock Shop
-# platform overlay is empty until modules land — apply only if it renders objects
+# apply the platform overlay only if it renders objects
 # (kubectl treats an empty `apply -k` as an error, not a no-op)
 manifest="$(kubectl kustomize deploy/platform/overlays/local)"
-if [ -n "$manifest" ]; then echo "$manifest" | kubectl apply -f -
+if [ -n "$manifest" ]; then
+  echo "   building/loading shared aiops:dev image"
+  CLUSTER="$CLUSTER" bash cluster/platform-image.sh
+  echo "$manifest" | kubectl apply -f -
 else echo "   (no platform module manifests yet — skipping)"; fi
 
 cat <<'EOF'

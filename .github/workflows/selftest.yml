@@ -1,0 +1,30 @@
+name: Selftest merge gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    name: make selftest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install base dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run offline selftests (static schema lint only; no PostgreSQL runtime validation)
+        run: make selftest
+      - name: SEC-001 Chaos Mesh namespace security guard
+        run: make security-test

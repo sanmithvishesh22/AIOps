@@ -12,7 +12,9 @@ experiment/results/*.csv
 experiment/results/*.parquet
 models/*.pt
 models/*.pkl
-
 # generated logs and temporary backups (never tracked)
 *.log
 *.bak
+
+# local scratch diff (never commit)
+store_diff.txt

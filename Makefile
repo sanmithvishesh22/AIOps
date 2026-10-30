@@ -14,9 +14,12 @@ down: ## delete the whole cluster
 	kind delete cluster --name $(CLUSTER)
 
 deploy: ## re-apply just our components (after code/manifest changes)
-	@out="$$(kubectl kustomize deploy/platform/overlays/local)"; \
+	@out="$$(kubectl kustomize deploy/platform/overlays/local)" || exit $$?; \
 	if [ -n "$$out" ]; then echo "$$out" | kubectl apply -f -; \
 	else echo "no platform module manifests yet — nothing to deploy"; fi
+
+platform-image: ## build the shared aiops:dev image and load it into the kind cluster
+	CLUSTER=$(CLUSTER) bash cluster/platform-image.sh
 
 load: ## run a k6 load Job against Sock Shop (REGIME=stationary|diurnal|spike|bursty)
 	@REGIME=$${REGIME:-stationary}; \
@@ -25,9 +28,18 @@ load: ## run a k6 load Job against Sock Shop (REGIME=stationary|diurnal|spike|bu
 chaos: ## list chaos experiments (render: python3 -m experiment.faults --render <name>)
 	@python3 -m experiment.faults --list
 
+security-test: ## run the SEC-001 Chaos Mesh namespace-scope guard (offline)
+	python3 cluster/chaos_scope_offline_test.py
+
 selftest: ## run every module's offline self-check (no cluster needed)
 	@for m in $(PY_MODULES); do \
 		echo "== aiops.$$m =="; python3 -m aiops.$$m --selftest || exit 1; done
+	@echo "== aiops.common.store =="; python3 -m aiops.common.store --selftest || exit 1
+	@echo "== aiops.common.fixtures =="; python3 -m aiops.common.fixtures --selftest || exit 1
+	@echo "== aiops.common.prom =="; python3 -m aiops.common.prom --selftest || exit 1
+	@echo "== aiops.ingest_csv =="; python3 -m aiops.ingest_csv --selftest || exit 1
+	@echo "== experiment.schema (offline) =="; python3 experiment/schema_offline_test.py || exit 1
+	@echo "== cluster.chaos_scope (SEC-001) =="; python3 cluster/chaos_scope_offline_test.py || exit 1
 	@echo "== experiment.load =="; python3 -m experiment.load --selftest || exit 1
 	@echo "== experiment.faults =="; python3 -m experiment.faults --selftest || exit 1
 	@echo "== experiment.runner =="; python3 -m experiment.runner --selftest || exit 1
