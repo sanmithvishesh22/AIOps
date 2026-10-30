@@ -12,6 +12,6 @@ PyYAML>=6.0
 
 # --- per-module extras (uncomment as needed) ---
 torch>=2.2              # detect: LSTM autoencoder
-prophet>=1.1            # forecast: Prophet (D3-002.1; lazily imported only when
+# prophet>=1.1          # forecast: Prophet (D3-002.1; lazily imported only when
                         # FORECAST_BACKEND=prophet, harmonic fallback keeps offline runs light)
 shap>=0.45              # explain: SHAP
