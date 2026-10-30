@@ -26,3 +26,5 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Run offline selftests (static schema lint only; no PostgreSQL runtime validation)
         run: make selftest
+      - name: SEC-001 Chaos Mesh namespace security guard
+        run: make security-test
