@@ -100,6 +100,8 @@ def _check_jobs() -> None:
     assert f".{common.SOCK_NS}." in config.TARGET_URL, "target must be in SOCK_NS"
     assert container["command"] == ["k6", "run", "/scripts/script.js"]
     assert "configMap" in pod["volumes"][0], "script delivered via ConfigMap"
+    cmap_name, cmap = render_configmap(prof)
+    assert pod["volumes"][0]["configMap"]["name"] == cmap_name == cmap["metadata"]["name"]
     # labels carry regime + seed + component for attribution (PS-5)
     labels = job["metadata"]["labels"]
     assert labels["aiops.platform/regime"] == "stationary"

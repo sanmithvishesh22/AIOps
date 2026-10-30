@@ -57,7 +57,7 @@ The guiding rule is the laziness principle from `ARCHITECTURE.md`: **reuse off-t
 | **Reactive baseline** | Kubernetes **native HPA v2**, tuned | The HPA *is* the control arm of the experiment. Using native HPA (not a custom reactive scaler) keeps the baseline honest and un-strawmanned; we only tune it via a predeclared procedure. |
 | **Scaling controller** | Custom Python controller → **k8s API** (`apps/v1` Deployment scale) | This is the contribution. Minimal custom code: forecast → desired replicas, with predeclared cooldown and min/max bounds. Talks to the cluster via the official `kubernetes` client. |
 | **Fault injection** | **Chaos Mesh** | Declarative, schedulable, covers the fault taxonomy (network, pod-kill, stress, etc.) we need for capacity-responsive faults *and* negative controls. Writing fault scripts by hand would be fragile and unrepeatable. |
-| **Load generation** | **k6** as a Kubernetes Job | Scriptable traffic regimes (steady/ramp/spike/soak) driven by an env var; runs in-cluster so it hits Sock Shop directly. |
+| **Load generation** | **k6** as a Kubernetes Job | Scriptable traffic regimes (stationary/diurnal/spike/bursty) driven by an env var; runs in-cluster so it hits Sock Shop directly. |
 | **Dashboard** | **React (Vite)** + small **Express** read-API | React for the live feed/graph/approval UI; a thin Express layer reads TimescaleDB so the browser never talks to Postgres directly. Vite for fast local dev. |
 | **Packaging** | **kustomize** bases + `local` overlay | One base per component, environment overlays layered on top — no templating engine (Helm) for our own manifests, since we have exactly one environment today and kustomize is built into `kubectl`. |
 | **Orchestration of ops** | **Makefile** | `up / down / deploy / load / chaos / selftest / ps` as one-liners. No task runner to learn. |
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS experiment_run (
     ended_at          TIMESTAMPTZ,
     pair_id           TEXT        NOT NULL,   -- groups the HPA run and the hybrid run that must be compared
     policy            TEXT        NOT NULL,   -- 'hpa_tuned' | 'forecast_hybrid'
-    workload_regime   TEXT        NOT NULL,   -- 'steady' | 'ramp' | 'spike' | 'soak'
+    workload_regime   TEXT        NOT NULL,   -- 'stationary' | 'diurnal' | 'spike' | 'bursty'
     fault_class       TEXT        NOT NULL,   -- e.g. 'cpu_stress', 'network_delay', 'pod_kill', 'mem_leak'
     is_negative_control BOOLEAN   NOT NULL,   -- TRUE where scaling cannot help (reported, never buried)
     seed              INTEGER,                -- RNG seed for reproducibility
@@ -274,7 +274,7 @@ aiops-platform/
 │   └── dashboard/                 React (Vite) UI + Express read-API              (to build)
 │
 ├── experiment/                  the harness (contribution)               (to build)
-│   ├── load/                      k6 job + traffic regimes (steady/ramp/spike/soak)
+│   ├── load/                      k6 job + traffic regimes (stationary/diurnal/spike/bursty)
 │   ├── faults/                    Chaos Mesh manifests (capacity-responsive + negative controls)
 │   ├── schema.sql                 DDL for the relational experiment tables (§4.2–4.4)
 │   └── analysis/                  paired-trial stats: bootstrap CIs, effect sizes
@@ -318,7 +318,7 @@ Read from the environment with defaults, so nothing is required to run a selftes
 |---|---|---|
 | `Makefile` | `CLUSTER` = `aiops` | kind cluster name (`make down` deletes this cluster). |
 | `Makefile` | `SOCK_NS` = `sock-shop` | Namespace for Sock Shop. |
-| `make load` | `REGIME` = `steady\|ramp\|spike\|soak` | Traffic regime the k6 Job runs (via `envsubst` on the job manifest). |
+| `make load` | `REGIME` = `stationary\|diurnal\|spike\|bursty` | Traffic regime the k6 Job runs (via `envsubst` on the job manifest). |
 | `cluster/kind-config.yaml` | NodePort maps | `30080→localhost:8080` dashboard, `30300→localhost:3300` Grafana, `30090→localhost:9090` Prometheus. |
 | Grafana | login | `admin` / `prom-operator` (kube-prometheus-stack default). |
 
@@ -338,7 +338,7 @@ Modules 1–7 can be built now. The **scaler + harness cannot produce a credible
 
 1. **SLO** — p95 latency + error-rate thresholds + the evaluation window (fills `SLO_P95_MS`, `SLO_ERROR_RATE`).
 2. **Prediction horizon *H*** — fills `experiment_run.horizon_s`.
-3. **Workload generator + the four regimes** — steady / ramp / spike / soak (the `REGIME` values).
+3. **Workload generator + the four regimes** — stationary / diurnal / spike / bursty (the `REGIME` values).
 4. **Scaling-policy parameters** — forecast→replica mapping, cooldown, min/max replica bounds, and the predeclared **HPA tuning procedure** for the baseline.
 5. **Fault taxonomy** — which faults are capacity-responsive vs negative controls (fills `fault_class`, `is_negative_control`).
 6. **Severity** — breach duration vs affected-request count as the primary severity operationalization.

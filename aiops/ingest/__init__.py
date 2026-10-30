@@ -18,7 +18,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-from .common import prom
+from ..common import prom
 
 # feature column -> the prom executor that returns it (all keyed by the `name` label)
 _METRICS = {

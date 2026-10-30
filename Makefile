@@ -2,6 +2,7 @@
 .DEFAULT_GOAL := help
 CLUSTER := aiops
 SOCK_NS := sock-shop
+PY_MODULES := ingest detect rca explain predict forecast scaler remediate dashboard
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n",$$1,$$2}'
@@ -17,16 +18,18 @@ deploy: ## re-apply just our components (after code/manifest changes)
 	if [ -n "$$out" ]; then echo "$$out" | kubectl apply -f -; \
 	else echo "no platform module manifests yet — nothing to deploy"; fi
 
-load: ## run a k6 load Job against Sock Shop (REGIME=steady|ramp|spike|soak)
-	REGIME=$${REGIME:-ramp} envsubst < experiment/load/k6-job.yaml | kubectl apply -f -
+load: ## run a k6 load Job against Sock Shop (REGIME=stationary|diurnal|spike|bursty)
+	@REGIME=$${REGIME:-stationary}; \
+	python3 -m experiment.load --manifests "$$REGIME" | kubectl apply -f -
 
-chaos: ## list chaos experiments (apply one: kubectl apply -f experiment/faults/<name>.yaml)
-	@ls experiment/faults/*.yaml 2>/dev/null || echo "no fault manifests yet"
+chaos: ## list chaos experiments (render: python3 -m experiment.faults --render <name>)
+	@python3 -m experiment.faults --list
 
 selftest: ## run every module's offline self-check (no cluster needed)
-	@for m in ingest predict forecast scaler; do \
+	@for m in $(PY_MODULES); do \
 		echo "== aiops.$$m =="; python3 -m aiops.$$m --selftest || exit 1; done
 	@echo "== experiment.load =="; python3 -m experiment.load --selftest || exit 1
+	@echo "== experiment.faults =="; python3 -m experiment.faults --selftest || exit 1
 	@echo "== experiment.runner =="; python3 -m experiment.runner --selftest || exit 1
 	@echo "== experiment.analysis =="; python3 -m experiment.analysis --selftest || exit 1
 	@echo "== experiment.audit (QA-003) =="; python3 experiment/audit.py || exit 1
