@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-from aiops.common import config as common
+from aiops.core import config as common
 from experiment.faults import config as faults_config
 from experiment.load import config as load_config
 

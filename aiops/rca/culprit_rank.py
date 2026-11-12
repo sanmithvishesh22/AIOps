@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from ..common import store
+from ..core import store
 from .dependency_graph import build_graph
 
 

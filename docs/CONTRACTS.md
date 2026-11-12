@@ -21,7 +21,7 @@ same date — `sample_frame()`, `sample_inference_rows()`, `--selftest` green.
 
 ## A — `inference` write/read contract (the linchpin)
 
-One row per derived signal, in the single hypertable defined in `aiops/common/store.py`:
+One row per derived signal, in the single hypertable defined in `aiops/core/store.py`:
 
 ```
 inference(ts, module, service, kind, value, meta JSONB)
@@ -45,7 +45,7 @@ Remediation and experiment records do **not** go in `inference` — they use the
 relational tables (Contract D). `RCA is a ranking, not causal proof` — the vocabulary
 says `culprit_rank`, never "root cause".
 
-## B — Prometheus read helpers (`aiops/common/prom.py`)
+## B — Prometheus read helpers (`aiops/core/prom.py`)
 
 Prometheus is the raw-metrics source of truth. Fixed signatures — consumers call these
 and **never hand-roll PromQL**:
@@ -74,8 +74,8 @@ The `(ts, service)` grid the ML modules consume. Columns, in order:
 Window `WINDOW_MIN`, step `STEP_S`, sorted by `(ts, service)`. **NaN policy: gaps are
 never filled.** A metric missing for a `(ts, service)` cell, or a gap inside a series,
 stays `NaN` — never zero-filled — so a downstream model can tell "no data" from "zero
-load". Dev 1 ships `sample_frame()` (`aiops/common/fixtures.py`, re-exported from
-`aiops.ingest`) so Dev 2/3 build against a real-shaped frame — including a dropped cell
+load". Dev 1 ships `sample_frame()` (`aiops/core/fixtures.py`, re-exported from
+`aiops.ingestion`) so Dev 2/3 build against a real-shaped frame — including a dropped cell
 and a NaN gap — on day one, with no cluster.
 
 ## D — experiment relational schema (`experiment/schema.sql`)
@@ -113,7 +113,7 @@ and the prediction/forecast (`predict`/`forecast`) — read via the Contract-A
 vocabulary. Dev 4 owns. This bundle is what the operator sees before approving; it
 documents the reasoning, it does not make the action autonomous or "proven safe".
 
-## G — config / env vars (`aiops/common/config.py`)
+## G — config / env vars (`aiops/core/config.py`)
 
 Single source; every module reads config from here — never re-reads env directly.
 

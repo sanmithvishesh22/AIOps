@@ -15,7 +15,7 @@ from .job import build_job
 from .k6script import render_configmap, render_script
 from .regimes import Profile, UnknownRegime, assert_envelope, build_profile, regime_or_raise
 
-from aiops.common import config as common
+from aiops.core import config as common
 
 
 def _check_regime_registry() -> None:

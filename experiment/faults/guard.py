@@ -12,7 +12,7 @@ The guard runs BEFORE any schedule/chaos object is built (call
 """
 from __future__ import annotations
 
-from aiops.common import config as common
+from aiops.core import config as common
 
 
 class NamespaceRefusal(Exception):

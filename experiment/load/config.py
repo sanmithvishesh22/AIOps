@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 
-from aiops.common import config as common
+from aiops.core import config as common
 from aiops.forecast import config as forecast_config
 
 # §9 Decision 3 — frozen trial length (configurable via env for bounded integration testing).

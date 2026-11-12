@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .ingest import COLUMNS
+from .ingestion import COLUMNS
 
 LABEL = "offline model-validation only, not reliability proof"
 _METRIC_COLUMNS = COLUMNS[2:]

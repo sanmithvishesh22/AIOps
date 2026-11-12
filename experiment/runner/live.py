@@ -18,9 +18,9 @@ import urllib.parse
 import urllib.request
 import yaml
 
-from aiops.common import config as common
-from aiops.scaler.controller import ScalerController
-from aiops.scaler.k8s import K8sScaleClient
+from aiops.core import config as common
+from aiops.scaling.controller import ScalerController
+from aiops.scaling.k8s import K8sScaleClient
 from experiment.faults.chaos import build_fault
 from experiment.load.job import build_job
 from experiment.load.k6script import render_configmap

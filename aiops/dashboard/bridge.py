@@ -57,11 +57,11 @@ from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from ..common import store
-# The audit row's column list is owned by D4-001 (`aiops.remediate.audit._FIELDS`);
+from ..core import store
+# The audit row's column list is owned by D4-001 (`aiops.remediation.audit._FIELDS`);
 # importing it keeps the dashboard read shape and the audit write shape identical
 # instead of copying the list here and letting the two drift apart.
-from ..remediate.audit import _FIELDS as _AUDIT_FIELDS
+from ..remediation.audit import _FIELDS as _AUDIT_FIELDS
 
 # --------------------------------------------------------------------------- #
 # Frozen endpoint -> source mapping (Contract A / Contract D). The keys are also

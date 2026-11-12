@@ -1,51 +1,45 @@
-"""Module 5 — capacity forecasting + baselines (D3-002).
+"""Backward-compatibility shim. Migrated to aiops.forecasting.
 
-Public surface:
-    SeasonalForecaster       main seasonal forecast (harmonic default, Prophet optional)
-    ForecastResult           per-path values + model label + documented fallback
-    SeasonalNaive, TreeBaseline, Persistence   Contract-A baselines / fallback
-    seasonality_gate, GateResult               D3-002.4 gate
-    service_series, backtest_anchors, compare_models, assert_main_beats_baselines
-    run_forecast, ServiceForecast, ForecastRun
-    inference_rows, write_forecast             Contract-A writers
-
-Offline check: ``python -m aiops.forecast --selftest``.
+All public names are re-exported from aiops.forecasting for backward
+compatibility. New code should import directly from aiops.forecasting.
 """
-from __future__ import annotations
-
-from . import config
-from .baselines import Persistence, SeasonalNaive, TreeBaseline
-from .gate import GateResult, seasonality_gate
-from .inference import KINDS, MODULE, inference_rows, write_forecast
-from .model import (
+from aiops.forecasting import (
+    KINDS,
+    MODULE,
+    config,
     HARMONIC_MODEL,
     PERSISTENCE_MODEL,
     PROPHET_MODEL,
     SNAIVE_FALLBACK_MODEL,
     SNAIVE_MODEL,
     ForecastResult,
-    SeasonalForecaster,
-)
-from .pipeline import (
-    N_BACKTEST_ANCHORS,
-    ServiceForecast,
     ForecastRun,
+    GateResult,
+    N_BACKTEST_ANCHORS,
+    Persistence,
+    SeasonalForecaster,
+    SeasonalNaive,
+    ServiceForecast,
+    TreeBaseline,
     assert_main_beats_baselines,
     backtest_anchors,
     compare_models,
+    inference_rows,
     run_forecast,
     service_series,
-)
+    seasonality_gate,
+    write_forecast,
+)  # noqa: F401
 
 __all__ = [
-    "config",
-    "MODULE",
     "KINDS",
+    "MODULE",
+    "config",
     "HARMONIC_MODEL",
-    "PROPHET_MODEL",
-    "SNAIVE_MODEL",
-    "SNAIVE_FALLBACK_MODEL",
     "PERSISTENCE_MODEL",
+    "PROPHET_MODEL",
+    "SNAIVE_FALLBACK_MODEL",
+    "SNAIVE_MODEL",
     "ForecastResult",
     "ForecastRun",
     "GateResult",
