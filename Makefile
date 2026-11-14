@@ -2,7 +2,7 @@
 .DEFAULT_GOAL := help
 CLUSTER := aiops
 SOCK_NS := sock-shop
-PY_MODULES := ingest detect rca explain predict forecast scaler remediate dashboard
+PY_MODULES := detection rca explain explainability prediction forecasting ingestion remediation scaling dashboard
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n",$$1,$$2}'
@@ -34,9 +34,9 @@ security-test: ## run the SEC-001 Chaos Mesh namespace-scope guard (offline)
 selftest: ## run every module's offline self-check (no cluster needed)
 	@for m in $(PY_MODULES); do \
 		echo "== aiops.$$m =="; python3 -m aiops.$$m --selftest || exit 1; done
-	@echo "== aiops.common.store =="; python3 -m aiops.common.store --selftest || exit 1
-	@echo "== aiops.common.fixtures =="; python3 -m aiops.common.fixtures --selftest || exit 1
-	@echo "== aiops.common.prom =="; python3 -m aiops.common.prom --selftest || exit 1
+	@echo "== aiops.core.store =="; python3 -m aiops.core.store --selftest || exit 1
+	@echo "== aiops.core.fixtures =="; python3 -m aiops.core.fixtures --selftest || exit 1
+	@echo "== aiops.core.prom =="; python3 -m aiops.core.prom --selftest || exit 1
 	@echo "== aiops.ingest_csv =="; python3 -m aiops.ingest_csv --selftest || exit 1
 	@echo "== experiment.schema (offline) =="; python3 experiment/schema_offline_test.py || exit 1
 	@echo "== cluster.chaos_scope (SEC-001) =="; python3 cluster/chaos_scope_offline_test.py || exit 1
