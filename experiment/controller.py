@@ -1,8 +1,10 @@
 """DEV3 — Deadline-aware execution controller for paired trial matrix.
 
 Orchestrates sequential execution of missing canonical matrix cells under:
-- 48-hour hard deadline with 6-hour finalization reserve (42h execution budget).
+- 48-hour execution window with 6-hour finalization reserve (42h execution budget).
 - Sleep prevention via caffeinate.
+- Reporting-only cleanup on interruption or abnormal process exit; automatic
+  Kubernetes mutation is intentionally disabled to avoid shared-resource damage.
 - Atomic pair verification, Contract-D database audit, and cluster health checks.
 - Fail-fast stop conditions on any failure, corruption, or anomaly.
 """
@@ -13,6 +15,7 @@ import datetime
 import json
 import logging
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -32,8 +35,24 @@ SOCK_NS = "sock-shop"
 PLATFORM_NS = "aiops"
 DEADLINE_HOURS = 48.0
 RESERVE_HOURS = 6.0
-EXEC_BUDGET_HOURS = DEADLINE_HOURS - RESERVE_HOURS
-EST_PAIR_MINUTES = 41.5
+EXEC_BUDGET_HOURS = DEADLINE_HOURS - RESERVE_HOURS  # 42h execution budget
+
+# --- Pair-admission / feasibility constants ---------------------------------
+# EST_PAIR_MINUTES is the *admission* estimate for one complete pair: two
+# 20-minute trials (TRIAL_DURATION_S=1200s) plus a 30s inter-run cooldown and
+# a 1.5m per-pair overhead (k6-loadgen Job spin-up/teardown, HPA settle, audit).
+# It is intentionally conservative so the 6h finalization reserve is never
+# entered. The DEFAULT_SAFETY_MARGIN_MINS is a nominal headroom documented here
+# but not folded into the admission threshold, to keep the established contract
+# (48h deadline / 6h reserve / 42h budget) unchanged.
+TRIAL_DURATION_S = 1200  # 20 min, mirrors experiment.runner.config.TRIAL_DURATION_S
+INTER_RUN_COOLDOWN_S = 30  # mirrors experiment.runner.config.INTER_RUN_COOLDOWN_S
+PER_PAIR_OVERHEAD_MINS = 1.5
+DEFAULT_SAFETY_MARGIN_MINS = 2.0  # nominal headroom; not part of the admission threshold
+EST_PAIR_MINUTES = (
+    (TRIAL_DURATION_S * 2 + INTER_RUN_COOLDOWN_S) / 60.0
+    + PER_PAIR_OVERHEAD_MINS
+)
 
 
 def get_db_connection(dsn: str = DEFAULT_DSN):
@@ -106,7 +125,6 @@ def check_cluster_health() -> tuple[bool, str]:
     # 2. Lingering loadgen Jobs
     res = subprocess.run(["kubectl", "get", "jobs", "-n", PLATFORM_NS], capture_output=True, text=True)
     if res.returncode == 0 and res.stdout.strip():
-        # Check if there are active jobs
         if "No resources" not in res.stderr and res.stdout.strip() != "":
             lines = [l for l in res.stdout.strip().split("\n") if not l.startswith("NAME")]
             if lines:
@@ -139,6 +157,46 @@ def check_cluster_health() -> tuple[bool, str]:
         return False, f"Prometheus query failed: {e}"
 
     return True, "Cluster baseline healthy"
+
+
+def cleanup_pair_resources(pair: MatchedPair | None = None) -> None:
+    """Report resources requiring manual cleanup; never delete shared resources."""
+
+    if pair is not None:
+        logger.warning(
+            "Automatic cleanup skipped for pair %s (seed %d). "
+            "Kubernetes resources may require manual inspection.",
+            pair.pair_id,
+            pair.seed,
+        )
+    else:
+        logger.warning(
+            "General emergency cleanup skipped. "
+            "Kubernetes resources may require manual inspection."
+        )
+
+    logger.warning(
+        "Manual inspection may be required for k6-loadgen Jobs "
+        "and load-harness ConfigMaps in namespace %s.",
+        PLATFORM_NS,
+    )
+
+    logger.warning(
+        "HPA deletion skipped: hpa-front-end in namespace default "
+        "may be shared with other experiments."
+    )
+
+    logger.warning(
+        "Deployment scaling skipped: front-end in namespace %s "
+        "may be actively managed by an HPA or another experiment.",
+        SOCK_NS,
+    )
+
+    logger.warning(
+        "Chaos Mesh cleanup skipped: manually inspect stresschaos, "
+        "podchaos, networkchaos and httpchaos resources in namespace %s.",
+        SOCK_NS,
+    )
 
 
 def get_matrix_coverage(db_completed_pairs: set[str], reps: int = 20, seed: int = 42) -> tuple[list[MatchedPair], list[MatchedPair], dict]:
@@ -187,12 +245,36 @@ def run_single_pair(pair: MatchedPair, dsn: str = DEFAULT_DSN) -> tuple[bool, st
 
     t0 = time.time()
     logger.info("Executing pair %s -> log: %s", pair.pair_id, log_file)
+    proc = None
     with open(log_file, "w") as f:
-        proc = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
+        try:
+            proc = subprocess.Popen(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
+            retcode = proc.wait()
+        except (KeyboardInterrupt, SystemExit):
+            logger.warning("Interruption received for pair %s; terminating child runner and cleaning up...", pair.pair_id)
+            if proc and proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+            cleanup_pair_resources(pair)
+            raise
+        except Exception as exc:
+            logger.error("Unexpected error executing pair %s: %s", pair.pair_id, exc)
+            if proc and proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+            cleanup_pair_resources(pair)
+            return False, f"Runner aborted with error: {exc}", log_file
 
     elapsed_s = time.time() - t0
-    if proc.returncode != 0:
-        return False, f"Runner failed with exit code {proc.returncode} after {elapsed_s:.1f}s", log_file
+    if retcode != 0:
+        cleanup_pair_resources(pair)
+        return False, f"Runner failed with exit code {retcode} after {elapsed_s:.1f}s", log_file
 
     return True, f"Completed in {elapsed_s:.1f}s", log_file
 
@@ -217,104 +299,141 @@ def run_controller_loop(
     pairs_executed = 0
     simulated_completed = None
 
-    while True:
-        loop_now = time.time()
-        elapsed_s = loop_now - start_time
-        remaining_budget_s = exec_budget_s - elapsed_s
+    def _sig_handler(signum, frame):
+        signame = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
+        logger.warning("Controller received %s. Stopping loop...", signame)
+        raise KeyboardInterrupt
 
-        # Stop Condition 1: Check time budget
-        if remaining_budget_s < (EST_PAIR_MINUTES * 60.0):
-            print(f"\n[STOP CONDITION] Remaining execution budget ({remaining_budget_s/3600.0:.2f}h) is less than")
-            print(f"one pair duration ({EST_PAIR_MINUTES:.1f}m). Halting execution to preserve final 6h reserve.")
-            break
+    old_sigint = signal.signal(signal.SIGINT, _sig_handler)
+    old_sigterm = signal.signal(signal.SIGTERM, _sig_handler)
 
-        # Stop Condition 2: Max pairs limit
-        if max_pairs is not None and pairs_executed >= max_pairs:
-            print(f"\n[TARGET REACHED] Reached requested max_pairs limit ({max_pairs}). Stopping.")
-            break
-
-        # Preflight 1: DB integrity
-        conn = get_db_connection(dsn)
-        ok, msg, db_stats = check_db_integrity(conn)
-        if not ok:
-            print(f"\n[STOP CONDITION: DB INTEGRITY] {msg}")
+    # One reusable connection for the controller's lifetime. It is closed in
+    # the finally block below, covering every early return, break, and
+    # exception path (including KeyboardInterrupt). check_db_integrity()
+    # issues no DDL/DML of its own, so a single connection is safe to share.
+    conn = None
+    try:
+        try:
+            conn = get_db_connection(dsn)
+        except Exception as exc:
+            print(f"\n[STOP CONDITION: DB CONNECTION] Failed to open database: {exc}")
             return 1
 
-        if simulated_completed is None:
-            simulated_completed = set(db_stats["completed_pair_ids"])
+        while True:
+            loop_now = time.time()
+            elapsed_s = loop_now - start_time
+            remaining_budget_s = exec_budget_s - elapsed_s
 
-        # Preflight 2: Matrix coverage & next cell
-        matrix, missing, coverage = get_matrix_coverage(simulated_completed if dry_run else db_stats["completed_pair_ids"])
-        if not missing:
-            print("\n[ALL COMPLETE] All 480 formal matrix cells completed!")
-            break
-
-        next_pair = missing[0]
-
-        # Preflight 3: Cluster health
-        ok, msg = check_cluster_health()
-        if not ok:
-            print(f"\n[STOP CONDITION: CLUSTER HEALTH] {msg}")
-            return 1
-
-        # Preflight 4: QA-003 audit
-        ok, msg = run_qa003_audit()
-        if not ok:
-            print(f"\n[STOP CONDITION: QA-003 AUDIT] {msg}")
-            return 1
-
-        print(f"\n--- [Pair {pairs_executed + 1}] Next Target: {next_pair.pair_id} ---")
-        print(f"  Regime: {next_pair.regime} | Fault: {next_pair.fault_class} | Rep: {next_pair.rep_index}")
-        print(f"  Seed: {next_pair.seed} | Order: {next_pair.ordered_policies} | Duration: {next_pair.duration_s}s")
-        print(f"  Progress: {len(matrix) - len(missing)}/{len(matrix)} completed ({len(missing)} remaining)")
-        print(f"  Execution Time Elapsed: {elapsed_s/3600.0:.2f}h | Remaining Budget: {remaining_budget_s/3600.0:.2f}h")
-
-        if dry_run:
-            print("  [DRY RUN] Invariants satisfied. Skipping physical execution.")
-            simulated_completed.add(next_pair.pair_id)
-            pairs_executed += 1
-            if max_pairs is not None and pairs_executed >= max_pairs:
+            # Stop Condition 1: Check time budget
+            if remaining_budget_s < (EST_PAIR_MINUTES * 60.0):
+                print(f"\n[STOP CONDITION] Remaining execution budget ({remaining_budget_s/3600.0:.2f}h) is less than")
+                print(f"one pair duration ({EST_PAIR_MINUTES:.1f}m). Halting execution to preserve final {reserve_hours}h reserve.")
                 break
-            continue
 
-        # Execute Pair
-        pre_runs_cnt = db_stats["total_runs"]
-        ok, msg, log_file = run_single_pair(next_pair, dsn=dsn)
-        if not ok:
-            print(f"\n[STOP CONDITION: EXECUTION FAILURE] {msg}")
-            print(f"Preserved execution log: {log_file}")
-            return 1
+            # Stop Condition 2: Max pairs limit
+            if max_pairs is not None and pairs_executed >= max_pairs:
+                print(f"\n[TARGET REACHED] Reached requested max_pairs limit ({max_pairs}). Stopping.")
+                break
 
-        # Postflight 1: Verify DB records
-        ok, msg, new_db_stats = check_db_integrity(conn)
-        if not ok:
-            print(f"\n[STOP CONDITION: POST-EXEC DB CORRUPTION] {msg}")
-            return 1
+            # Preflight 1: DB integrity
+            try:
+                ok, msg, db_stats = check_db_integrity(conn)
+            except Exception as exc:
+                print(f"\n[STOP CONDITION: DB INTEGRITY] Query failed: {exc}")
+                return 1
+            if not ok:
+                print(f"\n[STOP CONDITION: DB INTEGRITY] {msg}")
+                return 1
 
-        if new_db_stats["total_runs"] != pre_runs_cnt + 2:
-            print(f"\n[STOP CONDITION: RUN COUNT ANOMALY] Expected {pre_runs_cnt + 2} runs, found {new_db_stats['total_runs']}")
-            return 1
+            if simulated_completed is None:
+                simulated_completed = set(db_stats["completed_pair_ids"])
 
-        if next_pair.pair_id not in new_db_stats["completed_pair_ids"]:
-            print(f"\n[STOP CONDITION: PAIR PERSISTENCE FAILURE] Pair {next_pair.pair_id} not found in completed pairs")
-            return 1
+            # Preflight 2: Matrix coverage & next cell
+            matrix, missing, coverage = get_matrix_coverage(simulated_completed if dry_run else db_stats["completed_pair_ids"])
+            if not missing:
+                print("\n[ALL COMPLETE] All 480 formal matrix cells completed!")
+                break
 
-        # Postflight 2: Cluster cleanup check
-        ok, msg = check_cluster_health()
-        if not ok:
-            print(f"\n[STOP CONDITION: POST-EXEC CLUSTER DIRTY] {msg}")
-            return 1
+            next_pair = missing[0]
 
-        # Postflight 3: QA-003 Audit
-        ok, msg = run_qa003_audit()
-        if not ok:
-            print(f"\n[STOP CONDITION: POST-EXEC AUDIT FAILURE] {msg}")
-            return 1
+            # Preflight 3: Cluster health
+            ok, msg = check_cluster_health()
+            if not ok:
+                print(f"\n[STOP CONDITION: CLUSTER HEALTH] {msg}")
+                return 1
 
-        pairs_executed += 1
-        rate = pairs_executed / ((time.time() - start_time) / 3600.0)
-        feasible_remaining = int(remaining_budget_s / (EST_PAIR_MINUTES * 60.0))
-        print(f"✓ Pair {next_pair.pair_id} successfully verified. Rate: {rate:.2f} pairs/h. Est feasible remaining: ~{feasible_remaining} pairs.")
+            # Preflight 4: QA-003 audit
+            ok, msg = run_qa003_audit()
+            if not ok:
+                print(f"\n[STOP CONDITION: QA-003 AUDIT] {msg}")
+                return 1
+
+            print(f"\n--- [Pair {pairs_executed + 1}] Next Target: {next_pair.pair_id} ---")
+            print(f"  Regime: {next_pair.regime} | Fault: {next_pair.fault_class} | Rep: {next_pair.rep_index}")
+            print(f"  Seed: {next_pair.seed} | Order: {next_pair.ordered_policies} | Duration: {next_pair.duration_s}s")
+            print(f"  Progress: {len(matrix) - len(missing)}/{len(matrix)} completed ({len(missing)} remaining)")
+            print(f"  Execution Time Elapsed: {elapsed_s/3600.0:.2f}h | Remaining Budget: {remaining_budget_s/3600.0:.2f}h")
+
+            if dry_run:
+                print("  [DRY RUN] Invariants satisfied. Skipping physical execution.")
+                simulated_completed.add(next_pair.pair_id)
+                pairs_executed += 1
+                continue
+
+            # Execute Pair
+            pre_runs_cnt = db_stats["total_runs"]
+            ok, msg, log_file = run_single_pair(next_pair, dsn=dsn)
+            if not ok:
+                print(f"\n[STOP CONDITION: EXECUTION FAILURE] {msg}")
+                print(f"Preserved execution log: {log_file}")
+                return 1
+
+            # Postflight 1: Verify DB records
+            try:
+                ok, msg, new_db_stats = check_db_integrity(conn)
+            except Exception as exc:
+                print(f"\n[STOP CONDITION: POST-EXEC DB CORRUPTION] Query failed: {exc}")
+                return 1
+            if not ok:
+                print(f"\n[STOP CONDITION: POST-EXEC DB CORRUPTION] {msg}")
+                return 1
+
+            if new_db_stats["total_runs"] != pre_runs_cnt + 2:
+                print(f"\n[STOP CONDITION: RUN COUNT ANOMALY] Expected {pre_runs_cnt + 2} runs, found {new_db_stats['total_runs']}")
+                return 1
+
+            if next_pair.pair_id not in new_db_stats["completed_pair_ids"]:
+                print(f"\n[STOP CONDITION: PAIR PERSISTENCE FAILURE] Pair {next_pair.pair_id} not found in completed pairs")
+                return 1
+
+            # Postflight 2: Cluster cleanup check
+            ok, msg = check_cluster_health()
+            if not ok:
+                print(f"\n[STOP CONDITION: POST-EXEC CLUSTER DIRTY] {msg}")
+                return 1
+
+            # Postflight 3: QA-003 Audit
+            ok, msg = run_qa003_audit()
+            if not ok:
+                print(f"\n[STOP CONDITION: POST-EXEC AUDIT FAILURE] {msg}")
+                return 1
+
+            pairs_executed += 1
+            rate = pairs_executed / ((time.time() - start_time) / 3600.0)
+            feasible_remaining = int(remaining_budget_s / (EST_PAIR_MINUTES * 60.0))
+            print(f"✓ Pair {next_pair.pair_id} successfully verified. Rate: {rate:.2f} pairs/h. Est feasible remaining: ~{feasible_remaining} pairs.")
+
+    except KeyboardInterrupt:
+        print("\n[CONTROLLER INTERRUPTED] KeyboardInterrupt received. Exiting safely.")
+        return 1
+    finally:
+        signal.signal(signal.SIGINT, old_sigint)
+        signal.signal(signal.SIGTERM, old_sigterm)
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     print("\n==============================================================================")
     print(f"CONTROLLER RUN SUMMARY: Executed {pairs_executed} pairs.")
@@ -326,13 +445,25 @@ def main():
     parser = argparse.ArgumentParser(description="DEV3 Deadline-Aware Controller")
     parser.add_argument("--dry-run", action="store_true", help="Perform preflight checks without launching trials")
     parser.add_argument("--max-pairs", type=int, default=None, help="Maximum pairs to execute")
-    parser.add_argument("--deadline-hours", type=float, default=DEADLINE_HOURS, help="Total deadline in hours")
-    parser.add_argument("--reserve-hours", type=float, default=RESERVE_HOURS, help="Finalization reserve in hours")
+    parser.add_argument("--deadline-hours", type=float, default=DEADLINE_HOURS, help="Total deadline in hours (default: 48.0)")
+    parser.add_argument("--reserve-hours", type=float, default=RESERVE_HOURS, help="Finalization reserve in hours (default: 6.0)")
     parser.add_argument("--dsn", default=DEFAULT_DSN, help="Postgres/TimescaleDB connection string")
     parser.add_argument("--status", action="store_true", help="Print matrix coverage and exit")
+    parser.add_argument("--cleanup-orphans", action="store_true", help="Report orphaned trial resources requiring manual inspection; performs no Kubernetes mutation")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+    if args.cleanup_orphans:
+        res = subprocess.run(["ps", "-ef"], capture_output=True, text=True)
+        if "experiment.runner" in res.stdout:
+            print("ERROR: A runner process appears to be active! Refusing to report orphans while runner is running.")
+            sys.exit(1)
+        cleanup_pair_resources(None)
+        print("Orphan-resource report completed. Review the warnings above and perform any required Kubernetes cleanup manually.")
+        ok, msg = check_cluster_health()
+        print(f"Cluster health: {msg} (ok={ok})")
+        sys.exit(0 if ok else 1)
 
     if args.status:
         conn = get_db_connection(args.dsn)
