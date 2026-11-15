@@ -32,7 +32,7 @@ git checkout dev2-diagnosis        # your lane's branch, then open its flows/ do
 
 - Docker, [kind](https://kind.sigs.k8s.io/), `kubectl`, `helm`
 - Python 3.11+ (`pip install -r requirements.txt`)
-- Node 20+ (for the dashboard, later)
+- Node.js ≥22.22.2 (for the dashboard frontend and tests)
 
 ## Quickstart
 
@@ -58,6 +58,28 @@ See ARCHITECTURE.md → "Repo layout". In short: `cluster/` brings up the
 testbed, `deploy/` holds the manifests, `aiops/` holds our module code
 (`common/` is the shared Prometheus-read / TimescaleDB-write base), and
 `experiment/` holds the load regimes, fault schedules, and analysis.
+
+## Frontend development (dashboard)
+
+The dashboard has two packages: a Node.js/Express read-API (`aiops/dashboard/`)
+and a React/Vite UI (`aiops/dashboard/ui/`). Both use `npm` with lockfiles —
+`npm ci` installs exactly what's in `package-lock.json`.
+
+```bash
+# Dashboard API (Express)
+cd aiops/dashboard
+npm ci            # install dependencies
+npm test          # run Node.js test suite (28 tests)
+
+# React UI (Vite + Vitest)
+cd aiops/dashboard/ui
+npm ci            # install dependencies
+npm test          # run Vitest test suite (73 tests)
+```
+
+The UI runs in **mock mode** by default — no live backend required. Switch to
+live mode by setting `VITE_LIVE=true` (needs a running dashboard API on
+`localhost:8080`). See `flows/dev4-surface.md` for mode boundaries.
 
 ## Status
 

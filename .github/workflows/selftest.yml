@@ -28,3 +28,19 @@ jobs:
         run: make selftest
       - name: SEC-001 Chaos Mesh namespace security guard
         run: make security-test
+      - name: Setup Node.js 22.22.2
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.2"
+      - name: Install dashboard API dependencies
+        run: npm ci
+        working-directory: aiops/dashboard
+      - name: Run dashboard API tests
+        run: npm test
+        working-directory: aiops/dashboard
+      - name: Install React UI dependencies
+        run: npm ci
+        working-directory: aiops/dashboard/ui
+      - name: Run React UI tests
+        run: npm test
+        working-directory: aiops/dashboard/ui
