@@ -5,6 +5,7 @@ experiment.faults`` may not resolve without the ``__main__.py`` entry point.
 """
 from __future__ import annotations
 
+import os
 import sys
 
 from .chaos import (
@@ -14,8 +15,8 @@ from .chaos import (
     build_schedule,
     CHAOS_KINDS,
     fault_class_or_raise,
-    IS_NEGATIVE_CONTROL,
 )
+from .config import FAULT_CLASSES
 
 # Lightweight edge smoke test — use a fabricated namespace to force refusal.
 FAULT_TEST_SERVICE = "front-end"
@@ -38,7 +39,7 @@ def _fault_rejects_if_wrong_ns() -> int:
 
 if __name__ == "__main__":
     # A quick smoke: all ratified classes build tags correctly
-    for fc in config_faults := __import__("aiops.platform.experiment.faults.config", fromlist=["FAULT_CLASSES"]).FAULT_CLASSES:
+    for fc in FAULT_CLASSES:
         key = fault_class_or_raise(fc)
         manifest = build_fault(key, service=FAULT_TEST_SERVICE, seed=42)
         assert_fault(manifest)

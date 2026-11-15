@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 
-from aiops.common import config as common
+from aiops.core import config as common
 
 SOCK_NS = common.SOCK_NS
 
